@@ -1,12 +1,27 @@
 """ML endpoints — task-time estimation (P1) and anomaly/behavior (P2).
 
-Stub responses establish the API contract (§20.2). Replace with real model inference in Phase 1+.
+Stub responses establish the API contract (§20.2). /ml/estimate serves the trained XGBoost model
+(ml/models/task_time_v1.joblib); /ml/anomaly is still a stub.
 """
 
-from fastapi import APIRouter
+from functools import lru_cache
+
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from app.core.ml_repo import ensure_ml_importable
+
 router = APIRouter(prefix="/ml", tags=["ml"])
+
+
+@lru_cache(maxsize=1)
+def get_task_time_estimator():
+    """Load the task-time model once per process; None if the `ml` package isn't available."""
+    if not ensure_ml_importable():
+        return None
+    from ml.serving.task_time import TaskTimeEstimator
+
+    return TaskTimeEstimator.load()
 
 
 # ---- /ml/estimate (P1) ----
@@ -29,8 +44,18 @@ class EstimateResponse(BaseModel):
 
 @router.post("/estimate", response_model=EstimateResponse)
 def estimate(req: EstimateRequest) -> EstimateResponse:
-    # TODO(P1): load XGBoost model and predict ActualTime.
-    return EstimateResponse(estimated_minutes=45.0, baseline_minutes=45.0)
+    estimator = get_task_time_estimator()
+    if estimator is None:  # ml/ not deployed alongside the backend: keep the contract-accurate stub
+        return EstimateResponse(estimated_minutes=45.0, baseline_minutes=45.0)
+    try:
+        result = estimator.estimate(**req.model_dump())
+    except ValueError as exc:  # unknown task_type / weather / skill / vertical
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return EstimateResponse(
+        estimated_minutes=result.estimated_minutes,
+        baseline_minutes=result.baseline_minutes,
+        model_version=result.model_version,
+    )
 
 
 # ---- /ml/anomaly (P2) ----

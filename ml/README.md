@@ -38,8 +38,16 @@ The generator writes `telematics`, `tasks`, `sites`, `machines`, `operators`, `t
 | Predictive maintenance | P2 | Classifier / regressor |
 | Seatbelt / fatigue / acoustic | P2 | TFLite (on-device) |
 
-## Run
+## Run (Python 3.12, from the repo root)
 ```
-pip install -r requirements.txt
-python generators/generate.py --dataset tasks --vertical construction --rows 2000
+py -3.12 -m venv .venv && .venv\Scripts\activate      # macOS/Linux: python3.12 -m venv .venv && source .venv/bin/activate
+pip install -r ml/requirements.txt
+python ml/generators/generate.py                     # all tables, both verticals -> ml/data/synthetic/
+python ml/generators/generate.py --dataset tasks --vertical mining --rows 2000 --seed 7
+python ml/training/train_task_time.py                # -> ml/models/task_time_v1.joblib + .metrics.json
+python -m pytest ml/tests backend/tests
 ```
+- The generator validates every table against `data/schemas/*.schema.json` before writing.
+- `generators/catalog.py` holds the domain constants (enums, machine specs, task standards, baseline formula).
+- `serving/task_time.py` is shared by training and `/ml/estimate`, so features are built identically.
+- The model predicts log(Actual / Estimated). Held-out-operator results are in `models/task_time_v1.metrics.json`.
