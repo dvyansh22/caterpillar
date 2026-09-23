@@ -99,7 +99,7 @@ def sample_task_weather(rng: np.random.Generator, site_ids, month, hour) -> dict
     temp, rh = np.clip(temp, -20, 55), np.clip(rh, 5, 100)
     return {
         "Temperature_C": temp, "Humidity_pct": rh, "WindSpeed_kmh": wind,
-        "Visibility_m": np.clip(vis, 50, 20000), "Precip_mm_h": precip,
+        "Visibility_m": np.clip(vis, 50, 20000), "Precip_mm_h": np.clip(precip, 0, 100),
         "Weather": weather_label(temp, rh, wind, vis, precip, dusty=dust),
     }
 
