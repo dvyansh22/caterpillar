@@ -43,3 +43,16 @@ The generator writes `telematics`, `tasks`, `sites`, `machines`, `operators`, `t
 pip install -r requirements.txt
 python generators/generate.py --dataset tasks --vertical construction --rows 2000
 ```
+
+### P2 — anomaly model (`/ml/anomaly`)
+Until P1's generator lands, `training/p2_dev_data.py` writes a stand-in Dataset A that follows the
+schema v1.0 rules. Features, thresholds and per-machine-type norms live in
+`backend/app/core/anomaly.py`, shared by training and serving. The per-type speed limits and fuel norms
+there are P2 assumptions, marked `TODO(P1)`.
+```
+python training/p2_dev_data.py --rows 20000                  # -> data/synthetic/telematics_p2dev.csv
+python training/anomaly.py --data data/synthetic/telematics_p2dev.csv   # -> models/anomaly.joblib
+python training/anomaly.py                                   # once P1's telematics.csv exists
+```
+The backend loads `ml/models/anomaly.joblib` (override with `ANOMALY_MODEL_PATH`). If the file is
+missing, `/ml/anomaly` falls back to the schema rules alone (`model_version: rules-1`).
