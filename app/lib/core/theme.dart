@@ -1,47 +1,47 @@
 import 'package:flutter/material.dart';
 
-import 'vertical.dart';
+import 'tokens.dart';
 
-/// Rugged, industrial, high-contrast theme. Dark by default (night shifts + glare).
-/// The seed color comes from the active [Vertical] so the whole app re-skins on switch.
-ThemeData buildTheme(Vertical vertical, Brightness brightness) {
+/// Warm light theme from the design handoff. Vertical accents are applied per-widget
+/// via [accentProvider]; this theme covers the neutral base.
+ThemeData buildAppTheme() {
   final scheme = ColorScheme.fromSeed(
-    seedColor: vertical.accent,
-    brightness: brightness,
+    seedColor: AccentPalette.construction.base,
+    brightness: Brightness.light,
+    surface: AppColors.bg,
   );
 
   return ThemeData(
     useMaterial3: true,
     colorScheme: scheme,
-    scaffoldBackgroundColor: brightness == Brightness.dark ? const Color(0xFF121212) : null,
-    cardTheme: CardThemeData(
+    scaffoldBackgroundColor: AppColors.bg,
+    canvasColor: AppColors.bg,
+    dividerColor: AppColors.divider,
+    textTheme: const TextTheme().apply(bodyColor: AppColors.ink, displayColor: AppColors.ink),
+    appBarTheme: const AppBarTheme(
+      backgroundColor: AppColors.bg,
+      surfaceTintColor: Colors.transparent,
       elevation: 0,
-      color: brightness == Brightness.dark ? const Color(0xFF1E1E1E) : null,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      margin: const EdgeInsets.symmetric(vertical: 6),
-    ),
-    filledButtonTheme: FilledButtonThemeData(
-      style: FilledButton.styleFrom(
-        minimumSize: const Size.fromHeight(56), // large, glove-friendly targets
-        textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      ),
+      scrolledUnderElevation: 0,
+      foregroundColor: AppColors.ink,
+      titleTextStyle: TextStyle(fontSize: 20, color: AppColors.ink, fontWeight: FontWeight.w400),
     ),
     inputDecorationTheme: InputDecorationTheme(
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       filled: true,
-    ),
-    navigationBarTheme: const NavigationBarThemeData(height: 68),
-    textTheme: const TextTheme(
-      headlineSmall: TextStyle(fontWeight: FontWeight.w800),
-      titleLarge: TextStyle(fontWeight: FontWeight.w700),
+      fillColor: AppColors.card,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(kRadiusInput),
+        borderSide: const BorderSide(color: AppColors.inputBorder),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(kRadiusInput),
+        borderSide: const BorderSide(color: AppColors.inputBorder),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(kRadiusInput),
+        borderSide: const BorderSide(color: AppColors.ink, width: 2),
+      ),
     ),
   );
-}
-
-/// Semantic safety colors (independent of vertical).
-class SafetyColors {
-  static const pass = Color(0xFF2E7D32);
-  static const danger = Color(0xFFD32F2F);
-  static const warning = Color(0xFFF9A825);
 }

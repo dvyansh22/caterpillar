@@ -1,28 +1,57 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'core/router.dart';
+import 'core/nav.dart';
 import 'core/theme.dart';
-import 'core/vertical.dart';
+import 'core/tokens.dart';
+import 'features/auth/login_screen.dart';
+import 'features/safety_gate/safety_gate_screen.dart';
+import 'features/shell/main_shell.dart';
+import 'features/welcome/welcome_screen.dart';
 
 void main() {
   // TODO(P4): WidgetsFlutterBinding.ensureInitialized(); await Firebase.initializeApp();
   runApp(const ProviderScope(child: SmartOperatorApp()));
 }
 
-class SmartOperatorApp extends ConsumerWidget {
+class SmartOperatorApp extends StatelessWidget {
   const SmartOperatorApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final vertical = ref.watch(verticalProvider);
-    return MaterialApp.router(
-      title: 'Smart Operator Assistant',
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Smart Operator',
       debugShowCheckedModeBanner: false,
-      theme: buildTheme(vertical, Brightness.light),
-      darkTheme: buildTheme(vertical, Brightness.dark),
-      themeMode: ThemeMode.dark, // default dark for in-cab glare/night shifts
-      routerConfig: appRouter,
+      theme: buildAppTheme(),
+      home: const _Root(),
+      // The design targets a phone. Cap the width so it reads like a phone on wide
+      // screens (web); harmless on real devices (<= this width).
+      builder: (context, child) => ColoredBox(
+        color: AppColors.bg,
+        child: Center(
+          // width capped to phone size, height fills the window (keeps Scaffold bounded).
+          child: SizedBox(width: 430, height: double.infinity, child: child),
+        ),
+      ),
+    );
+  }
+}
+
+class _Root extends ConsumerWidget {
+  const _Root();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final phase = ref.watch(navProvider.select((s) => s.phase));
+    final child = switch (phase) {
+      AppPhase.login => const LoginScreen(),
+      AppPhase.gate => const SafetyGateScreen(),
+      AppPhase.welcome => const WelcomeScreen(),
+      AppPhase.app => const MainShell(),
+    };
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 220),
+      child: KeyedSubtree(key: ValueKey(phase), child: child),
     );
   }
 }

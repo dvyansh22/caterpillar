@@ -6,9 +6,10 @@ import 'package:smart_operator_assistant/main.dart';
 void main() {
   testWidgets('App boots to the login screen', (WidgetTester tester) async {
     await tester.pumpWidget(const ProviderScope(child: SmartOperatorApp()));
-    await tester.pumpAndSettle();
+    await tester.pump();
 
-    expect(find.text('Smart Operator Assistant'), findsWidgets);
-    expect(find.text('Log In'), findsOneWidget);
+    expect(find.text('Smart Operator'), findsOneWidget);
+    expect(find.text('Sign in'), findsOneWidget);
+    expect(find.text('Demo accounts'), findsOneWidget);
   });
 }

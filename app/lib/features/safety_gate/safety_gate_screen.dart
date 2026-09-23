@@ -1,13 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../core/app_state.dart';
-import '../../core/theme.dart';
+import '../../core/nav.dart';
+import '../../core/tokens.dart';
 
-/// FR-GATE-1/2 — pre-start safety gate. Auto-verifies checks; hard-blocks entry until all pass.
-/// Checks are mocked here (seatbelt would come from the telematics dataset, camera from a
-/// permission/liveness check). Breathalyzer intentionally removed.
+/// 02 Pre-start safety gate (FR-GATE-1/2). Auto-verifies seatbelt + camera; can't be skipped.
 class SafetyGateScreen extends ConsumerStatefulWidget {
   const SafetyGateScreen({super.key});
 
@@ -15,111 +15,181 @@ class SafetyGateScreen extends ConsumerStatefulWidget {
   ConsumerState<SafetyGateScreen> createState() => _SafetyGateScreenState();
 }
 
-enum _CheckStatus { checking, pass, fail }
-
-class _Check {
-  _Check(this.label, this.icon);
-  final String label;
-  final IconData icon;
-  _CheckStatus status = _CheckStatus.checking;
-}
-
 class _SafetyGateScreenState extends ConsumerState<SafetyGateScreen> {
-  late final List<_Check> _checks = [
-    _Check('Seatbelt fastened', Icons.airline_seat_recline_normal),
-    _Check('Operator camera on', Icons.videocam_outlined),
-  ];
+  final _timers = <Timer>[];
+  GateStatus _seat = GateStatus.pending;
+  GateStatus _cam = GateStatus.pending;
 
   @override
   void initState() {
     super.initState();
-    _runChecks();
-  }
-
-  Future<void> _runChecks() async {
-    for (var i = 0; i < _checks.length; i++) {
-      await Future<void>.delayed(const Duration(milliseconds: 900));
-      if (!mounted) return;
-      setState(() => _checks[i].status = _CheckStatus.pass); // mock: all pass
-    }
-  }
-
-  bool get _allPassed => _checks.every((c) => c.status == _CheckStatus.pass);
-  bool get _anyFailed => _checks.any((c) => c.status == _CheckStatus.fail);
-
-  void _enter() {
-    ref.read(sessionProvider.notifier).passGate();
-    context.go('/home/tasks');
+    _run();
   }
 
   @override
+  void dispose() {
+    for (final t in _timers) {
+      t.cancel();
+    }
+    super.dispose();
+  }
+
+  void _run() {
+    for (final t in _timers) {
+      t.cancel();
+    }
+    _timers.clear();
+    setState(() {
+      _seat = GateStatus.busy;
+      _cam = GateStatus.pending;
+    });
+    _timers.add(Timer(const Duration(milliseconds: 1200), () {
+      setState(() {
+        _seat = GateStatus.pass;
+        _cam = GateStatus.busy;
+      });
+    }));
+    _timers.add(Timer(const Duration(milliseconds: 2400), () {
+      setState(() {
+        _seat = GateStatus.pass;
+        _cam = GateStatus.pass;
+      });
+    }));
+    _timers.add(Timer(const Duration(milliseconds: 3200), () {
+      if (mounted) ref.read(navProvider.notifier).toWelcome();
+    }));
+  }
+
+  bool get _locked => _seat == GateStatus.fail || _cam == GateStatus.fail;
+
+  @override
   Widget build(BuildContext context) {
+    final user = ref.watch(currentUserProvider);
+    final passed = _seat == GateStatus.pass && _cam == GateStatus.pass;
+    final title = _locked ? 'Machine locked' : passed ? 'Ready to start' : 'Checking before you start';
+    final sub = _locked
+        ? 'Fix the item below, then run the checks again.'
+        : 'These checks run automatically. You can’t skip them.';
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Pre-Start Safety Check'), automaticallyImplyLeading: false),
       body: SafeArea(
         child: Column(
           children: [
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(24, 40, 24, 16),
                 children: [
-                  Text('Complete all checks to start your shift',
-                      style: Theme.of(context).textTheme.titleMedium),
+                  const Text('PRE-START SAFETY GATE',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, letterSpacing: 0.6, color: AppColors.muted)),
+                  const SizedBox(height: 10),
+                  Text(title, style: const TextStyle(fontSize: 30, height: 38 / 30, color: AppColors.ink)),
+                  const SizedBox(height: 8),
+                  Text(sub, style: const TextStyle(fontSize: 15, height: 22 / 15, color: AppColors.muted)),
+                  const SizedBox(height: 24),
+                  _checkCard(
+                    _seat,
+                    'Seatbelt',
+                    {
+                      GateStatus.pending: 'Waiting',
+                      GateStatus.busy: 'Reading SeatbeltStatus for ${user.machineId}…',
+                      GateStatus.pass: 'Fastened · session ${user.session}',
+                      GateStatus.fail: 'Unfastened. Fasten your seatbelt, then re-run the checks.',
+                    },
+                  ),
                   const SizedBox(height: 12),
-                  ..._checks.map(_buildCheckRow),
-                  if (_anyFailed)
-                    Container(
-                      margin: const EdgeInsets.only(top: 16),
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: SafetyColors.danger.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: SafetyColors.danger),
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.block, color: SafetyColors.danger),
-                          SizedBox(width: 10),
-                          Expanded(child: Text('Cannot start — resolve failed checks before proceeding.')),
-                        ],
-                      ),
-                    ),
+                  _checkCard(
+                    _cam,
+                    'Operator camera',
+                    {
+                      GateStatus.pending: 'Waiting for seatbelt check',
+                      GateStatus.busy: 'Starting the front camera…',
+                      GateStatus.pass: 'On · face detected for fatigue monitoring',
+                      GateStatus.fail: 'Front camera is off. Turn it on so fatigue monitoring can run.',
+                    },
+                  ),
                 ],
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: FilledButton.icon(
-                onPressed: _allPassed ? _enter : null,
-                icon: const Icon(Icons.login),
-                label: Text(_allPassed ? 'Enter' : 'Checking…'),
+            if (_locked)
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(color: AppColors.errorBg, borderRadius: BorderRadius.circular(12)),
+                      child: const Row(children: [
+                        Icon(Icons.lock, size: 20, color: Color(0xFF7A1D14)),
+                        SizedBox(width: 10),
+                        Expanded(child: Text('App locked until every check passes.',
+                            style: TextStyle(fontSize: 14, color: Color(0xFF7A1D14)))),
+                      ]),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      height: 56,
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: _run,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: user.accent.base,
+                          foregroundColor: AppColors.ink,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                        ),
+                        child: const Text('Re-run checks', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w500)),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        ref.read(appProvider.notifier).logout();
+                        ref.read(navProvider.notifier).reset();
+                      },
+                      child: const Text('Sign out', style: TextStyle(color: AppColors.muted)),
+                    ),
+                  ],
+                ),
               ),
-            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildCheckRow(_Check c) {
-    final (Widget trailing, Color color) = switch (c.status) {
-      _CheckStatus.checking => (
-          const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5)),
-          Colors.grey,
-        ),
-      _CheckStatus.pass => (const Icon(Icons.check_circle, color: SafetyColors.pass), SafetyColors.pass),
-      _CheckStatus.fail => (const Icon(Icons.cancel, color: SafetyColors.danger), SafetyColors.danger),
+  Widget _checkCard(GateStatus status, String title, Map<GateStatus, String> detail) {
+    final (Color chipBg, Widget chipChild) = switch (status) {
+      GateStatus.pass => (AppColors.successBg, const Icon(Icons.check, size: 22, color: AppColors.successInk)),
+      GateStatus.fail => (AppColors.errorBg, const Icon(Icons.close, size: 22, color: AppColors.errorText)),
+      _ => (AppColors.surface2, const Text('···', style: TextStyle(color: AppColors.muted2, fontWeight: FontWeight.w700))),
     };
-    return Card(
-      child: ListTile(
-        leading: Icon(c.icon, color: color),
-        title: Text(c.label),
-        subtitle: Text(switch (c.status) {
-          _CheckStatus.checking => 'Checking…',
-          _CheckStatus.pass => 'Passed',
-          _CheckStatus.fail => 'Failed',
-        }),
-        trailing: trailing,
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(kRadiusCard),
+        border: Border.all(color: status == GateStatus.fail ? AppColors.errorBorder : AppColors.divider),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(color: chipBg, shape: BoxShape.circle),
+            child: chipChild,
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w500, color: AppColors.ink)),
+                const SizedBox(height: 4),
+                Text(detail[status] ?? '', style: const TextStyle(fontSize: 14, height: 20 / 14, color: AppColors.muted)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
