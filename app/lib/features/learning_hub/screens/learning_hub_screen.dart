@@ -23,20 +23,6 @@ class LearningHubScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Learning Hub'),
-        actions: [
-          // On-device safety demo shortcut
-          IconButton(
-            icon: const Icon(Icons.shield_outlined),
-            tooltip: 'On-Device Safety',
-            onPressed: () => context.go('/learning-hub/safety'),
-          ),
-          // AR Repair shortcut
-          IconButton(
-            icon: const Icon(Icons.build_circle_outlined),
-            tooltip: 'AR Field Repair',
-            onPressed: () => context.go('/learning-hub/repair'),
-          ),
-        ],
       ),
       body: CustomScrollView(
         slivers: [
@@ -70,8 +56,11 @@ class LearningHubScreen extends ConsumerWidget {
                 final module = modules[index];
                 return _ModuleCard(
                   module: module,
-                  onTap: () =>
-                      context.go('/learning-hub/training/${module.id}'),
+                  onTap: () => context.go(
+                    module.id == 'combined_control'
+                        ? '/learning-hub/combined'
+                        : '/learning-hub/training/${module.id}',
+                  ),
                 );
               },
             ),
@@ -210,6 +199,7 @@ class _ModuleCard extends StatelessWidget {
     'speed' => Icons.speed_rounded,
     'construction' => Icons.construction_rounded,
     'build' => Icons.build_rounded,
+    'tune' => Icons.tune_rounded,
     _ => Icons.school_rounded,
   };
 

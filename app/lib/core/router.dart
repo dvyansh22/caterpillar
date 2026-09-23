@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 
 import '../features/learning_hub/screens/ar_repair_screen.dart';
 import '../features/learning_hub/screens/ar_training_screen.dart';
+import '../features/learning_hub/screens/combined_training_screen.dart';
 import '../features/learning_hub/screens/learning_hub_screen.dart';
 import '../features/learning_hub/screens/on_device_safety_screen.dart';
 import '../features/tasks/screens/tasks_screen.dart';
@@ -32,22 +33,6 @@ final routerProvider = GoRouter(
           pageBuilder: (context, state) => const NoTransitionPage(
             child: LearningHubScreen(),
           ),
-          routes: [
-            GoRoute(
-              path: 'training/:moduleId',
-              builder: (context, state) => ArTrainingScreen(
-                moduleId: state.pathParameters['moduleId']!,
-              ),
-            ),
-            GoRoute(
-              path: 'repair',
-              builder: (context, state) => const ArRepairScreen(),
-            ),
-            GoRoute(
-              path: 'safety',
-              builder: (context, state) => const OnDeviceSafetyScreen(),
-            ),
-          ],
         ),
         GoRoute(
           path: '/sos',
@@ -62,6 +47,24 @@ final routerProvider = GoRouter(
           ),
         ),
       ],
+    ),
+    // Full-screen lesson routes (outside the shell → no bottom nav).
+    GoRoute(
+      path: '/learning-hub/training/:moduleId',
+      builder: (context, state) =>
+          ArTrainingScreen(moduleId: state.pathParameters['moduleId']!),
+    ),
+    GoRoute(
+      path: '/learning-hub/repair',
+      builder: (context, state) => const ArRepairScreen(),
+    ),
+    GoRoute(
+      path: '/learning-hub/safety',
+      builder: (context, state) => const OnDeviceSafetyScreen(),
+    ),
+    GoRoute(
+      path: '/learning-hub/combined',
+      builder: (context, state) => const CombinedTrainingScreen(),
     ),
   ],
 );
