@@ -18,8 +18,9 @@ const kVoiceLanguages = <VoiceLanguage>[
 ];
 
 abstract class VoiceService {
-  /// Prepare the engine and request microphone permission. Returns availability.
-  Future<bool> init();
+  /// Prepare the engine (offline engines download their model on first run;
+  /// [onProgress] reports 0..1). Returns availability.
+  Future<bool> init({void Function(double progress)? onProgress});
 
   bool get isAvailable;
 

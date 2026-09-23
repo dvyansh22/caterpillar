@@ -1,13 +1,14 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'sherpa_voice_service.dart';
 import 'speech_to_text_voice_service.dart';
 import 'voice_service.dart';
 
-/// Active speech-to-text engine. Default is the OS/browser engine
-/// (works on web + Android); the native build can swap in an offline
-/// sherpa-onnx service behind this same provider.
+/// Active speech-to-text engine: offline sherpa-onnx (Whisper) on the phone,
+/// the browser Web Speech API on web. Both sit behind [VoiceService].
 final voiceServiceProvider = Provider<VoiceService>((ref) {
-  final s = SpeechToTextVoiceService();
+  final VoiceService s = kIsWeb ? SpeechToTextVoiceService() : SherpaVoiceService();
   ref.onDispose(s.dispose);
   return s;
 });

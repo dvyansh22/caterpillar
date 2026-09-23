@@ -12,7 +12,7 @@ class SpeechToTextVoiceService implements VoiceService {
   bool get isAvailable => _available;
 
   @override
-  Future<bool> init() async {
+  Future<bool> init({void Function(double progress)? onProgress}) async {
     _available = await _speech.initialize(
       onError: (e) {},
       onStatus: (_) {},

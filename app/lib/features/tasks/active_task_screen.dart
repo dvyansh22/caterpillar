@@ -21,6 +21,9 @@ class ActiveTaskScreen extends ConsumerStatefulWidget {
 class _ActiveTaskScreenState extends ConsumerState<ActiveTaskScreen> with SingleTickerProviderStateMixin {
   Timer? _tick;
   bool _recording = false;
+  bool _preparing = false; // downloading/loading the offline model
+  bool _transcribing = false; // decoding after stop (offline)
+  double _dl = 0; // model download progress 0..1
   String _interim = '';
   late final AnimationController _pulse =
       AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat();
@@ -42,12 +45,35 @@ class _ActiveTaskScreenState extends ConsumerState<ActiveTaskScreen> with Single
 
   String _mmss(int s) => '${(s ~/ 60).toString().padLeft(2, '0')}:${(s % 60).toString().padLeft(2, '0')}';
 
-  /// Real multilingual speech-to-text (FR-VOICE-1/3). Tap to start, tap to stop.
+  /// Multilingual speech-to-text (FR-VOICE-1/3). Offline (sherpa-onnx/Whisper) on
+  /// the phone, browser engine on web. Tap to start, tap to stop.
   Future<void> _onMicTap(OperatorUser user, String taskId) async {
     final voice = ref.read(voiceServiceProvider);
+    if (_preparing || _transcribing) return;
     if (_recording) {
+      setState(() {
+        _recording = false;
+        _transcribing = true; // offline decode runs on stop
+      });
       await voice.stop();
       return; // the final result arrives via onResult(isFinal: true)
+    }
+    // First use: prepare the engine (offline model downloads on first run).
+    if (!voice.isAvailable) {
+      setState(() {
+        _preparing = true;
+        _dl = 0;
+      });
+      final ok = await voice.init(onProgress: (p) {
+        if (mounted) setState(() => _dl = p);
+      });
+      if (mounted) setState(() => _preparing = false);
+      if (!ok) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Voice engine unavailable.')));
+        }
+        return;
+      }
     }
     final lang = ref.read(voiceLanguageProvider);
     setState(() {
@@ -58,25 +84,28 @@ class _ActiveTaskScreenState extends ConsumerState<ActiveTaskScreen> with Single
       localeId: lang.localeId,
       onResult: (text, isFinal) {
         if (!mounted) return;
-        setState(() => _interim = text);
-        if (isFinal) {
-          final t = text.trim();
-          if (t.isNotEmpty) {
-            final start = ref.read(appProvider).activeStartMs ?? DateTime.now().millisecondsSinceEpoch;
-            final sec = ((DateTime.now().millisecondsSinceEpoch - start) / 1000).floor();
-            final sync = user.vertical == Vertical.mining ? 'Queued, no signal' : 'Synced';
-            ref.read(appProvider.notifier).addVoiceLog(taskId, VoiceLog(text: t, time: _mmss(sec), sync: sync));
-          }
-          setState(() {
-            _recording = false;
-            _interim = '';
-          });
+        if (!isFinal) {
+          setState(() => _interim = text);
+          return;
         }
+        final t = text.trim();
+        if (t.isNotEmpty) {
+          final start = ref.read(appProvider).activeStartMs ?? DateTime.now().millisecondsSinceEpoch;
+          final sec = ((DateTime.now().millisecondsSinceEpoch - start) / 1000).floor();
+          final sync = user.vertical == Vertical.mining ? 'Queued, no signal' : 'Synced';
+          ref.read(appProvider.notifier).addVoiceLog(taskId, VoiceLog(text: t, time: _mmss(sec), sync: sync));
+        }
+        setState(() {
+          _recording = false;
+          _transcribing = false;
+          _interim = '';
+        });
       },
       onError: (m) {
         if (!mounted) return;
         setState(() {
           _recording = false;
+          _transcribing = false;
           _interim = '';
         });
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
@@ -171,7 +200,11 @@ class _ActiveTaskScreenState extends ConsumerState<ActiveTaskScreen> with Single
                             width: 72,
                             height: 72,
                             decoration: BoxDecoration(shape: BoxShape.circle, color: _recording ? AppColors.ink : acc.base),
-                            child: Icon(_recording ? Icons.stop : Icons.mic, size: 30, color: _recording ? acc.base : AppColors.ink),
+                            child: (_preparing || _transcribing)
+                                ? const Padding(
+                                    padding: EdgeInsets.all(22),
+                                    child: CircularProgressIndicator(strokeWidth: 3, color: AppColors.ink))
+                                : Icon(_recording ? Icons.stop : Icons.mic, size: 30, color: _recording ? acc.base : AppColors.ink),
                           ),
                         ],
                       ),
@@ -182,11 +215,27 @@ class _ActiveTaskScreenState extends ConsumerState<ActiveTaskScreen> with Single
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(_recording ? 'Listening…' : 'Voice log',
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: AppColors.ink)),
+                        Text(
+                          _preparing
+                              ? 'Preparing offline voice'
+                              : _transcribing
+                                  ? 'Transcribing…'
+                                  : _recording
+                                      ? 'Listening…'
+                                      : 'Voice log',
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: AppColors.ink),
+                        ),
                         const SizedBox(height: 4),
-                        Text(_recording ? 'Speak now. Tap again to stop.' : 'Tap and speak in your language.',
-                            style: const TextStyle(fontSize: 14, height: 20 / 14, color: AppColors.muted)),
+                        Text(
+                          _preparing
+                              ? 'Downloading model ${(_dl * 100).round()}% (one time)'
+                              : _transcribing
+                                  ? 'Converting speech to text on the phone…'
+                                  : _recording
+                                      ? 'Speak now. Tap to stop.'
+                                      : 'Tap and speak in your language.',
+                          style: const TextStyle(fontSize: 14, height: 20 / 14, color: AppColors.muted),
+                        ),
                       ],
                     ),
                   ),
@@ -201,12 +250,26 @@ class _ActiveTaskScreenState extends ConsumerState<ActiveTaskScreen> with Single
                     ChoiceChip(
                       label: Text(l.label),
                       selected: selectedLang.localeId == l.localeId,
-                      onSelected: _recording ? null : (_) => ref.read(voiceLanguageProvider.notifier).set(l),
+                      onSelected: (_recording || _preparing || _transcribing)
+                          ? null
+                          : (_) => ref.read(voiceLanguageProvider.notifier).set(l),
                       selectedColor: acc.tint,
                       showCheckmark: false,
                     ),
                 ],
               ),
+              if (_preparing) ...[
+                const SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(3),
+                  child: LinearProgressIndicator(
+                    value: _dl,
+                    minHeight: 6,
+                    backgroundColor: AppColors.surface2,
+                    valueColor: AlwaysStoppedAnimation(acc.base),
+                  ),
+                ),
+              ],
               if (_recording && _interim.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 Container(
