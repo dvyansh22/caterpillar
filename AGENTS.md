@@ -3,85 +3,123 @@
 Guidance for AI coding agents (Claude Code, Cursor, Copilot, etc.) working in this repository.
 Humans: see [`README.md`](README.md). Full spec: [`docs/`](docs/).
 
+## ▶ How to use this file
+1. Ask the teammate **which role they are: P1, P2, P3, or P4** (or infer it from what they're doing).
+2. Jump to that role's **playbook** below and work the tasks **top to bottom**.
+3. Respect the **interface contracts** — they are what let 4 people build in parallel without
+   breaking each other. Never change a shared contract unilaterally.
+4. When a requirement isn't in [`docs/`](docs/), leave a `TODO(<Pn>)` instead of guessing on a shared contract.
+
+Read before non-trivial work: [`docs/SRS.md`](docs/SRS.md) (requirements, `FR-*` IDs) ·
+[`docs/EXECUTION_PLAN.md`](docs/EXECUTION_PLAN.md) (ownership) · [`docs/DESIGN.md`](docs/DESIGN.md) (architecture).
+
 ---
 
 ## What this project is
-**Smart Operator Assistant for CAT machinery** — a phone-first intelligent companion for Caterpillar
-machine operators and technicians, plus an owner web dashboard. Core idea: make the **operator's
-phone the intelligence layer** so smart-machine features work even on **old non-telematics machines**.
-Two verticals, one app: **construction + mining** (config-swapped personality).
+**Smart Operator Assistant for CAT machinery** — a phone-first companion for Caterpillar operators/
+technicians (+ owner web dashboard). Core idea: make the **operator's phone the intelligence layer**
+so smart features work even on **old non-telematics machines**. One app, two verticals
+(**construction + mining**), swapped by a `vertical` config — never hardcode per-vertical behavior.
 
-Read these before making non-trivial changes:
-- [`docs/SRS.md`](docs/SRS.md) — requirements (functional reqs are IDed `FR-*`).
-- [`docs/EXECUTION_PLAN.md`](docs/EXECUTION_PLAN.md) — who owns what + interface contracts.
-- [`docs/DESIGN.md`](docs/DESIGN.md) — architecture, tech stack, data schemas.
-
----
-
-## Repository map & ownership
-| Folder | Owner | Stack | Purpose |
-|---|---|---|---|
-| `app/` | P4 (+P3) | Flutter/Dart | Mobile app + web dashboard |
-| `ar/` | P3 | Unity 2022.3 LTS + AR Foundation | AR training + field repair |
-| `backend/` | P1/P2 | FastAPI (Python 3.12) | ML/RAG/sim/signaling API |
-| `ml/` | P1/P2 | Python (XGBoost/sklearn/TFLite) | Data + model training |
-| `firebase/` | P4 | Firebase | Auth/Firestore/Storage/FCM config |
-| `docs/` | all | Markdown | SRS, plan, design |
-
-**Stay in your module.** If a change spans modules, it must respect the interface contracts below —
-do not silently change a shared contract.
+| Folder | Owner | Stack |
+|---|---|---|
+| `app/` | P4 (+P3) | Flutter/Dart |
+| `ar/` | P3 | Unity 2022.3 LTS + AR Foundation |
+| `backend/` | P1/P2 | FastAPI (Python 3.12) |
+| `ml/` | P1/P2 | Python (XGBoost/sklearn/TFLite) |
+| `firebase/` | P4 | Firebase config |
 
 ---
 
-## Interface contracts — DO NOT break without updating both sides
-1. **FastAPI JSON contract** — request/response shapes in `backend/app/routers/*.py`. The app calls
-   these; changing a field breaks `app/lib/services/ml_client`. Update the pydantic schema AND the
-   Dart client together.
-2. **Data schemas** — column lists in `docs/SRS.md §6` and `ml/data/schemas/`. The generator, models,
-   and dashboard all depend on these. The organizer sample CSVs in `ml/data/raw/` are ground truth —
-   never edit them.
-3. **TFLite model spec** — input/output tensor shapes agreed between `ml/` (producer) and
-   `app/lib/services` (consumer).
-4. **Unity↔Flutter protocol** — message names/payloads between `ar/` and `app/lib/services/ar_bridge`.
-5. **Firestore data model** — collections in `firebase/firestore.rules`
-   (`users, machines, tasks, incidents, telematics, training, behaviorFlags, sosEvents`).
+# Role Playbooks
 
-The backend currently returns **stub responses** so the app can integrate before models are trained.
-Keep stubs contract-accurate when you add real logic.
+## 🟦 P1 — Data & Task-Time Estimation
+**Mission:** the data foundation + the task-time ML model.
+**You work in:** `ml/` (data, generators, training, models) · `backend/app/routers/ml.py` (`/ml/estimate`) · `backend/app/routers/sim.py`.
+**You produce (contracts):** the Dataset A/B **column schemas** (`ml/data/schemas/`, `docs/SRS.md §6`); the `/ml/estimate` + `/sim` JSON.
+**Implements:** FR-ML-1, FR-ML-5, FR-TASK-2.
+**Tasks (in order):**
+1. Finalize expanded schemas for Dataset A (telematics) & B (tasks); write them to `ml/data/schemas/`.
+2. Build the synthetic generator in `ml/generators/generate.py` for **both verticals**, encoding the
+   relationships in the sample CSVs (beginner+bad weather → overrun; unfastened+high idle → alert).
+3. Train + evaluate the **XGBoost** task-time regressor in `ml/training/`; export to `ml/models/`.
+4. Wire `/ml/estimate` in `backend/` to load the model and return real predictions (keep the JSON shape).
+5. Seed a demo dataset into Firestore/BigQuery.
+**Done when:** generator emits realistic rows for both verticals; the model beats the naive
+`EstimatedTime` baseline; `POST /ml/estimate` returns a real ETA. Never edit `ml/data/raw/` (ground truth).
+
+## 🟩 P2 — Safety / Behavior ML + On-Device Models + RAG
+**Mission:** every safety/behavior model + the repair-answer brain.
+**You work in:** `ml/training/`, `ml/models/` · `backend/app/routers/ml.py` (`/ml/anomaly`), `rag.py`, `voice.py`.
+**You produce (contracts):** `/ml/anomaly`, `/rag/query`, `/voice/nlu` JSON; **TFLite tensor specs** (hand to P3).
+**Implements:** FR-ML-2, FR-ML-3, FR-ML-4, FR-SAFE-1, FR-SAFE-3.
+**Tasks (in order):**
+1. Anomaly / excessive-idling / unsafe-pattern model (IsolationForest/classifier) → serve `/ml/anomaly`.
+2. Safety-alert prediction, predictive-maintenance, fuel-anomaly models (`docs/SRS.md §6`, `DESIGN.md §5.4`).
+3. Train & export **TFLite** models for seatbelt, fatigue, acoustic; document input/output tensors for P3.
+4. Build the RAG corpus (machine manuals) + `/rag/query` (embeddings → vector DB → LLM); back `/voice/nlu` with it.
+**Done when:** `/ml/anomaly` returns real scores+reasons; TFLite files exist with documented tensor
+specs; `/rag/query` returns grounded answers with sources.
+
+## 🟨 P3 — AR + Model Integration
+**Mission:** all AR, and wiring the models into the app.
+**You work in:** `ar/` (Unity) · `app/lib/features/learning_hub/` · `app/lib/services/ar_bridge` ·
+`app/lib/services/ml_client` (+ on-device TFLite integration).
+**You produce (contracts):** the **Unity↔Flutter message protocol**. **You consume:** P2's TFLite specs, P1/P2's FastAPI JSON.
+**Implements:** FR-LEARN, FR-REPAIR, plus all "models in the app" wiring.
+**Tasks (in order):**
+1. Unity AR project + AR Foundation image/object tracking; agree the Unity↔Flutter protocol with P4.
+2. **Everyday-object training** module: mouse → steering, water bottle → throttle, with stepped prompts.
+3. AR field-repair exploded/animated view (fault-highlighted part).
+4. `flutter_unity_widget` bridge in `app/lib/services/ar_bridge`.
+5. Integrate on-device **TFLite** (seatbelt/fatigue/acoustic) + **FastAPI clients** (`ml_client`) into the app.
+6. *(Stretch)* WebRTC tele-mentoring.
+**Done when:** the everyday-object AR lesson runs; the app calls the ML endpoints (stub or real) and
+runs a TFLite model on-device. Respect the on-device-vs-cloud split in `docs/DESIGN.md §2`.
+
+## 🟥 P4 — Flutter App + Backend Infra
+**Mission:** the app shell, all non-AR screens, auth, Firebase, SOS/BLE, offline.
+**You work in:** `app/lib/` (core, features except learning_hub/AR, services: firebase/ble/sync) · `firebase/`.
+**You produce (contracts):** the **Firestore data model** (`firebase/firestore.rules`). **You consume:** the FastAPI JSON.
+**Implements:** FR-AUTH, FR-GATE, FR-TASK, FR-VOICE, FR-SOS, FR-DASH.
+**Tasks (in order):**
+1. App scaffold: navigation (`Task | Learning Hub | SOS | Profile`), theming, `vertical` switch (Riverpod).
+2. Firebase Auth + RBAC (custom claims) + machine registry; write `firestore.rules` + collections.
+3. Pre-start safety gate (seatbelt from data + camera-on; hard block on fail).
+4. Task dashboard: cards (name, ML-ETA via `ml_client`, location) → Start Task → active view.
+5. Voice-log / incident capture with on-device ASR (sherpa-onnx).
+6. **SOS BLE mesh** + proximity (`flutter_blue_plus` + `flutter_nearby_connections`).
+7. Offline cache/sync (Isar) + owner web dashboard (`flutter build web`, `fl_chart`).
+**Done when:** login→gate→task(with ETA)→voice-log works; SOS relays across phones; verticals switch;
+safety path works offline.
 
 ---
 
-## Setup & commands
-- **App:** `cd app && flutter pub get && flutter run` · web: `flutter build web` · check: `flutter analyze`
-- **Backend:** `cd backend && pip install -r requirements.txt && uvicorn app.main:app --reload` ·
-  health: `GET /health`
-- **ML:** `cd ml && pip install -r requirements.txt` · generator: `python generators/generate.py --help`
-- **AR:** open `ar/` in Unity 2022.3 LTS (AR Foundation + ARCore/ARKit plugins)
-- **Firebase:** `firebase deploy --only firestore:rules,storage,functions`
+## Interface contracts — do NOT break without updating both sides
+1. **FastAPI JSON** (`backend/app/routers/*.py` ↔ `app/lib/services/ml_client`) — change pydantic + Dart together.
+2. **Data schemas** (`docs/SRS.md §6`, `ml/data/schemas/`) — generator, models, dashboard depend on them.
+3. **TFLite tensor specs** (P2 → P3).
+4. **Unity↔Flutter protocol** (`ar/` ↔ `app/lib/services/ar_bridge`).
+5. **Firestore model** (`firebase/firestore.rules`: `users, machines, tasks, incidents, telematics, training, behaviorFlags, sosEvents`).
 
-Verify before pushing: backend must `import app.main` cleanly; app must `flutter analyze` without new
-errors. CI (`.github/workflows/ci.yml`) runs these on push/PR.
+The backend returns **stub responses** today so the app can integrate before models exist — keep stubs contract-accurate.
 
----
+## Setup & verify
+- App: `cd app && flutter pub get && flutter run` · check `flutter analyze`
+- Backend: `cd backend && pip install -r requirements.txt && uvicorn app.main:app --reload` · `GET /health`
+- ML: `cd ml && pip install -r requirements.txt` · `python generators/generate.py --help`
+- AR: open `ar/` in Unity 2022.3 LTS · Firebase: `firebase deploy --only firestore:rules,storage,functions`
+
+Before pushing: backend must `import app.main` cleanly; app must `flutter analyze` without new errors (CI checks both).
 
 ## Conventions
-- **Language/style:** Dart → `flutter_lints`; Python → PEP 8, type hints, `ruff`/`black` friendly.
-- **State/nav (app):** Riverpod + GoRouter. Feature-first folders under `app/lib/features/<feature>/`.
-- **Commits:** short imperative subject, optionally `type: subject` (e.g. `feat: add SOS BLE relay`).
-- **Branches/PRs:** prefer a feature branch + PR for anything non-trivial on a shared file.
-- **Vertical-adaptive:** never hardcode construction-vs-mining behavior; drive it from the `vertical`
-  config/Remote Config.
-- **Offline-first:** safety features (gate, seatbelt/fatigue, SOS, voice log) must work with NO network.
+- Dart → `flutter_lints`, feature-first folders. Python → PEP 8 + type hints.
+- Commits: imperative subject, optional `type: subject` (`feat: add SOS BLE relay`). Feature branch + PR for shared files.
+- Offline-first for all safety features. Vertical behavior comes from config, never hardcoded.
 
 ## Guardrails — do NOT
-- Commit secrets: `google-services.json`, `GoogleService-Info.plist`, `serviceAccount*.json`, `.env`
-  (already git-ignored — keep it that way).
-- Edit the organizer sample data in `ml/data/raw/`.
-- Weaken `firebase/firestore.rules` to `allow read, write: if true`.
-- Add heavy real ML inference on-device where a `backend/` call belongs (and vice-versa) — respect the
-  on-device vs cloud split in `docs/DESIGN.md §2`.
-- Change a shared interface contract unilaterally — coordinate both sides.
-
-## When unsure
-Check `docs/` first; if the requirement isn't there, leave a `TODO(<owner>)` and note the open
-question rather than guessing on a shared contract.
+- Commit secrets (`google-services.json`, `GoogleService-Info.plist`, `serviceAccount*.json`, `.env` — git-ignored).
+- Edit organizer sample data in `ml/data/raw/`.
+- Weaken `firestore.rules` to `allow read, write: if true`.
+- Move on-device work to the cloud or vice-versa against `docs/DESIGN.md §2`.
+- Change a shared contract unilaterally.
