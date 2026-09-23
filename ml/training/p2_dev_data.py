@@ -19,7 +19,7 @@ import pandas as pd
 
 ML_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ML_DIR.parent / "backend"))
-from app.core.anomaly import NORMS, label_anomaly  # noqa: E402
+from app.core.anomaly import catalog, label_anomaly  # noqa: E402  (catalog = P1's ml/generators/catalog.py)
 
 SITES = {
     "construction": [("SITE01", 12.97, 77.59), ("SITE02", 19.08, 72.88), ("SITE03", 28.61, 77.21)],
@@ -40,7 +40,7 @@ UNBELTED = {"Beginner": 0.40, "Intermediate": 0.28, "Expert": 0.15}
 def make_fleet(rng: np.random.Generator, per_vertical: int = 30) -> tuple[pd.DataFrame, pd.DataFrame]:
     machines, operators, counter = [], [], {}
     for vertical, sites in SITES.items():
-        types = [t for v, t in NORMS if v == vertical]
+        types = list(catalog.MACHINE_TYPES[vertical])
         for _ in range(per_vertical):
             mtype = rng.choice(types)
             prefix = PREFIX[mtype]
@@ -70,10 +70,10 @@ def generate(rows: int, seed: int = 42) -> pd.DataFrame:
         ignore_index=True,
     )
     skill = ops["OperatorSkill"].to_numpy()
-    norm = [NORMS[(v, t)] for v, t in zip(m["Vertical"], m["MachineType"])]
-    speed_limit = np.array([n.speed_limit_kmh for n in norm])
-    fuel_rate = np.array([n.fuel_l_per_h for n in norm])
-    cycle_rate = np.array([n.cycles_per_h for n in norm])
+    spec = [catalog.MACHINE_SPECS[(v, t)] for v, t in zip(m["Vertical"], m["MachineType"])]
+    speed_limit = np.array([s["speed_limit_kmh"] for s in spec])
+    fuel_rate = np.array([np.mean(s["fuel_lph"]) for s in spec])
+    cycle_rate = np.array([np.mean(s["cycles_per_h"]) for s in spec])
     mining = (m["Vertical"] == "mining").to_numpy()
     phone = ~m["HasTelematics"].to_numpy()
 

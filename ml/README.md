@@ -53,15 +53,16 @@ python -m pytest ml/tests backend/tests
 - The model predicts log(Actual / Estimated). Held-out-operator results are in `models/task_time_v1.metrics.json`.
 
 ### P2 — anomaly, safety-alert and maintenance models (`/ml/anomaly`, `/ml/safety`, `/ml/maintenance`)
-Until P1's generator lands, `training/p2_dev_data.py` writes a stand-in Dataset A that follows the
-schema v1.0 rules. Features, thresholds and per-machine-type norms live in
-`backend/app/core/anomaly.py`, shared by training and serving. The per-type speed limits and fuel norms
-there are P2 assumptions, marked `TODO(P1)`.
+Train on P1's `data/synthetic/telematics.csv`. `training/p2_dev_data.py` is an older stand-in Dataset A,
+kept for quick experiments. Features and rule checks live in `backend/app/core/anomaly.py`, shared by
+training and serving. The per-machine-type speed limits and fuel norms come from P1's
+`generators/catalog.py` (`anomaly_limits`, `fuel_ratio`), the same numbers the generator labels with.
+`backend/tests/test_shared_limits.py` fails if the two ever disagree.
 ```
-python training/p2_dev_data.py --rows 20000                  # -> data/synthetic/telematics_p2dev.csv
-python training/anomaly.py --data data/synthetic/telematics_p2dev.csv   # -> models/anomaly.joblib
-python training/risk.py --data data/synthetic/telematics_p2dev.csv      # -> models/{safety,maintenance}.joblib
-python training/anomaly.py && python training/risk.py        # once P1's telematics.csv exists
+python generators/generate.py                                # -> data/synthetic/telematics.csv (P1)
+python training/anomaly.py                                   # -> models/anomaly.joblib
+python training/risk.py                                      # -> models/{safety,maintenance}.joblib
+python training/p2_dev_data.py --rows 20000                  # optional stand-in -> telematics_p2dev.csv
 ```
 The backend loads `ml/models/{anomaly,safety,maintenance}.joblib` (override with
 `ANOMALY_MODEL_PATH`, `SAFETY_MODEL_PATH`, `MAINTENANCE_MODEL_PATH`). If a file is missing, that
