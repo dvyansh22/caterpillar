@@ -5,26 +5,34 @@
 The single Flutter codebase for the operator app, technician app, and the owner **web** dashboard
 (built via `flutter build web`). Vertical-adaptive (construction ↔ mining).
 
+Built to the design handoff in [`docs/design/operator_app`](../docs/design/operator_app) — a warm
+**light** theme, two verticals (construction/mining) driven by the signed-in account.
+
 ## Structure
 ```
 lib/
-├── main.dart
-├── core/          # theme, router (GoRouter), config, vertical switch (Riverpod)
+├── main.dart          # root: phase switch (login/gate/welcome/app), phone-width cap
+├── core/
+│   ├── tokens.dart    # neutral color tokens + per-vertical AccentPalette
+│   ├── theme.dart     # light ThemeData
+│   ├── nav.dart       # NavController (phase/tab/subview state)
+│   └── app_state.dart # AppController (session, tasks, logs, lessons, sos) + providers
+├── data/              # models.dart + mock_data.dart (users/tasks/lessons)
 ├── features/
-│   ├── auth/          # login, RBAC, vertical routing            (FR-AUTH)
-│   ├── safety_gate/   # pre-start seatbelt + camera gate          (FR-GATE)
-│   ├── tasks/         # dashboard, cards, start/active, ML ETA     (FR-TASK)
-│   ├── voice_log/     # tap-to-speak incident log (sherpa-onnx)    (FR-VOICE)
-│   ├── learning_hub/  # AR training entry (everyday objects)       (FR-LEARN)
-│   ├── sos/           # BLE SOS mesh                               (FR-SOS)
-│   ├── safety/        # on-device seatbelt/fatigue, proximity      (FR-SAFE)
-│   └── profile/       # operator profile, skills passport
-├── services/      # firebase, ble, ml_client, ar_bridge, sync
-└── models/        # data models mirroring Firestore schema
+│   ├── auth/          # login + demo accounts (arjun/bala)          (FR-AUTH)
+│   ├── safety_gate/   # pre-start seatbelt + camera gate            (FR-GATE)
+│   ├── welcome/       # post-gate welcome
+│   ├── tasks/         # list, detail, active (voice log)      (FR-TASK/FR-VOICE)
+│   ├── learning_hub/  # lessons + AR lesson (everyday objects)      (FR-LEARN)
+│   ├── sos/           # hold-to-send BLE SOS + relay steps          (FR-SOS)
+│   ├── profile/       # profile + skills passport
+│   └── shell/         # main_shell: app bar, 3-tab nav, floating SOS
 ```
+Mock data/timers stand in for Firebase, `/ml/estimate`, sherpa-onnx, BLE and Unity — wire those up.
 
-## Bottom navbar
-`Task | Learning Hub | SOS | Profile`
+## Navigation
+Flow: **login → safety gate → welcome → app**. In-app: 3-tab bottom nav
+**Task | Learning Hub | Profile** with a **floating SOS button** on every tab (opens a full SOS view).
 
 ## Run
 ```

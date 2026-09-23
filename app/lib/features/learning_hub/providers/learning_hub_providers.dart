@@ -6,12 +6,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/training_module.dart';
 
 /// All available training modules.
-final trainingModulesProvider = StateNotifierProvider<TrainingModulesNotifier, List<TrainingModule>>(
-  (ref) => TrainingModulesNotifier(),
-);
+final trainingModulesProvider =
+    NotifierProvider<TrainingModulesNotifier, List<TrainingModule>>(TrainingModulesNotifier.new);
 
-class TrainingModulesNotifier extends StateNotifier<List<TrainingModule>> {
-  TrainingModulesNotifier() : super(DefaultModules.all);
+class TrainingModulesNotifier extends Notifier<List<TrainingModule>> {
+  @override
+  List<TrainingModule> build() => DefaultModules.all;
 
   /// Mark a step as completed in a module.
   void completeStep(String moduleId, int stepIndex, double score) {
@@ -45,9 +45,6 @@ class TrainingModulesNotifier extends StateNotifier<List<TrainingModule>> {
     ];
   }
 }
-
-/// The currently active lesson (module ID + current step).
-final activeLessonProvider = StateProvider<({String moduleId, int step})?>((ref) => null);
 
 /// Overall training progress (0.0 – 1.0).
 final trainingProgressProvider = Provider<double>((ref) {

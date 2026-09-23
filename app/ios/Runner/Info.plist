@@ -4,8 +4,6 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
-	<key>NSCameraUsageDescription</key>
-	<string>Camera access is required for AR Operator Training and Field Repair.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
@@ -68,5 +66,9 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>The camera powers AR training overlays and on-device seatbelt/fatigue safety checks.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>The microphone powers on-device engine-sound anomaly detection.</string>
 </dict>
 </plist>

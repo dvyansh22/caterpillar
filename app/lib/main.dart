@@ -1,35 +1,55 @@
-// Smart Operator Assistant for CAT machinery — app entry point.
-//
-// Owners: P4 (UI/backend) + P3 (AR bridge, ML wiring).
-// Wired with Riverpod, GoRouter, and the CAT theme.
-// Firebase init is TODO(P4) — needs GoogleService-Info.plist.
-
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/config.dart';
-import 'core/providers.dart';
-import 'core/router.dart';
+import 'core/nav.dart';
 import 'core/theme.dart';
+import 'features/auth/login_screen.dart';
+import 'features/dashboard/dashboard_screen.dart';
+import 'features/safety_gate/safety_gate_screen.dart';
+import 'features/shell/main_shell.dart';
+import 'features/welcome/welcome_screen.dart';
+import 'firebase_options.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // TODO(P4): await Firebase.initializeApp();
+  // Only touches Firebase when explicitly enabled (see docs/FIREBASE_SETUP.md).
+  if (kUseFirebase) {
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  }
   runApp(const ProviderScope(child: SmartOperatorApp()));
 }
 
-class SmartOperatorApp extends ConsumerWidget {
+class SmartOperatorApp extends StatelessWidget {
   const SmartOperatorApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final vertical = ref.watch(verticalProvider);
-
-    return MaterialApp.router(
-      title: 'Smart Operator Assistant',
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Smart Operator',
       debugShowCheckedModeBanner: false,
-      theme: buildCatTheme(isMining: vertical == Vertical.mining),
-      routerConfig: routerProvider,
+      theme: buildAppTheme(),
+      home: const _Root(),
     );
+  }
+}
+
+class _Root extends ConsumerWidget {
+  const _Root();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final phase = ref.watch(navProvider.select((s) => s.phase));
+    // Return the active screen directly. (The former AnimatedSwitcher + phone-width
+    // builder wrapper are gone; they added a loosely-constrained Stack/SizedBox layer
+    // that only muddied debugging of the real bottom-nav height bug in MainShell.)
+    return switch (phase) {
+      AppPhase.login => const LoginScreen(),
+      AppPhase.gate => const SafetyGateScreen(),
+      AppPhase.welcome => const WelcomeScreen(),
+      AppPhase.app => const MainShell(),
+      AppPhase.dashboard => const DashboardScreen(),
+    };
   }
 }

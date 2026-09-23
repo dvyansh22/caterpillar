@@ -6,7 +6,11 @@ Ship stub responses first so the app team (P3) can integrate before models are t
 
 from fastapi import FastAPI
 
-from app.routers import ml, rag, voice, sim
+from app.core.config import load_env
+
+load_env()  # before routers read their settings
+
+from app.routers import ml, rag, voice, sim  # noqa: E402
 
 app = FastAPI(
     title="Smart Operator Assistant — AI Service",

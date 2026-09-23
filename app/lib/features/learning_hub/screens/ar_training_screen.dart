@@ -17,7 +17,6 @@ import 'dart:math' as math;
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../core/theme.dart';
 import '../motion/frame_motion_tracker.dart';
@@ -499,7 +498,7 @@ class _ArTrainingScreenState extends ConsumerState<ArTrainingScreen>
           children: [
             _GlassButton(
               icon: Icons.close_rounded,
-              onTap: () => context.go('/learning-hub'),
+              onTap: () => Navigator.of(context).maybePop(),
             ),
             const SizedBox(width: 8),
             Expanded(
@@ -902,7 +901,7 @@ class _CompletionView extends StatelessWidget {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.close_rounded),
-          onPressed: () => context.go('/learning-hub'),
+          onPressed: () => Navigator.of(context).maybePop(),
         ),
         title: Text(module.title),
       ),
@@ -953,7 +952,7 @@ class _CompletionView extends StatelessWidget {
               ),
               const SizedBox(height: 32),
               ElevatedButton.icon(
-                onPressed: () => context.go('/learning-hub'),
+                onPressed: () => Navigator.of(context).maybePop(),
                 icon: const Icon(Icons.arrow_back_rounded),
                 label: const Text('Back to Learning Hub'),
               ),

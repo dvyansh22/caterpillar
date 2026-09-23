@@ -27,22 +27,22 @@ final arReadyProvider = Provider<bool>((ref) {
 
 /// Tracking status for each AR object — maps objectId → tracked.
 final arTrackingStatusProvider =
-    StateNotifierProvider<ArTrackingNotifier, Map<String, bool>>((ref) {
-  final notifier = ArTrackingNotifier();
-  // Listen to tracking events and update state.
-  final sub = ref.listen(arEventsProvider, (_, next) {
-    next.whenData((event) {
-      if (event is TrackingStatusEvent) {
-        notifier.update(event.objectId, event.tracked);
-      }
-    });
-  });
-  ref.onDispose(() => sub.close());
-  return notifier;
-});
+    NotifierProvider<ArTrackingNotifier, Map<String, bool>>(ArTrackingNotifier.new);
 
-class ArTrackingNotifier extends StateNotifier<Map<String, bool>> {
-  ArTrackingNotifier() : super({});
+class ArTrackingNotifier extends Notifier<Map<String, bool>> {
+  @override
+  Map<String, bool> build() {
+    // Update tracking state from AR events for this provider's lifetime.
+    final sub = ref.listen(arEventsProvider, (_, next) {
+      next.whenData((event) {
+        if (event is TrackingStatusEvent) {
+          update(event.objectId, event.tracked);
+        }
+      });
+    });
+    ref.onDispose(sub.close);
+    return {};
+  }
 
   void update(String objectId, bool tracked) {
     state = {...state, objectId: tracked};

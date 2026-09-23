@@ -85,7 +85,7 @@ LLM companion reasoning, dashboard aggregation, tele-mentoring signaling.
 | Synthetic data | **Python (NumPy + Faker)** generator | "Assumed" fleet telematics history for ML + dashboard |
 | Tele-mentoring | **flutter_webrtc** + STUN/TURN + data channel | Remote expert annotates junior's live AR/video feed |
 | Maps/geo | **google_maps_flutter** + geofencing | Site map, task locations, proximity zones |
-| Weather | **OpenWeatherMap API** | Environmental input to task-time estimation |
+| Weather | **Open-Meteo API** (free, no key; live forecast, nothing stored) | Work conditions for task-time estimation: heat stress (WBGT), visibility, rain |
 | Backend runtime | **FastAPI (Python)** on **Cloud Run** | ML, RAG, LLM orchestration, sim, signaling |
 | Analytics/health | **Firebase Analytics + Crashlytics** | Usage, crash reporting |
 
@@ -122,7 +122,7 @@ LLM companion reasoning, dashboard aggregation, tele-mentoring signaling.
 - **Dashboard:** Firestore `tasks` collection filtered by operator + date; map view via
   google_maps_flutter.
 - **Estimation model:** XGBoost regressor, features = {machine type, task type, operator skill,
-  material/soil, weather (OpenWeather), historical durations}. Trained on the synthetic dataset;
+  material/soil, live weather + site location (Open-Meteo -> heat stress, visibility, wet ground; `ml/features/conditions.py`), historical durations}. Trained on the synthetic dataset;
   served at FastAPI `/ml/estimate`. Returns per-task ETA adapted to *this* operator, not a fleet mean.
 
 ### 4.5 Phone-as-Sensor Safety Suite *(required: seatbelt, proximity, incidents)*
@@ -216,28 +216,38 @@ The two given tables have too few columns/rows to train real models, so `/sim` *
 more columns and thousands of rows that preserve realistic relationships. Every "expected outcome" in
 the problem statement gets a dedicated ML treatment.
 
-**Dataset A — Telematics (expanded columns):**
-`Timestamp, MachineID, MachineType, Vertical, OperatorID, EngineHours, FuelUsed_L, LoadCycles,
-IdlingTime_min, Speed_kmh, EngineTemp_C, HydraulicPressure, RPM, HarshEvents(count),
-ProximityWarnings(count), HoursSinceBreak, AmbientTemp_C, SeatbeltStatus, FatigueScore,
-SafetyAlertTriggered, AnomalyFlag, MaintenanceDue` (last three = ML targets).
+> **Frozen schema v1.0** — units, enums, nullability, keys and ground-truth rules are defined in
+> [`SRS.md` §6](SRS.md#6-data-requirements) and [`ml/data/schemas/`](../ml/data/schemas/). The lists
+> below are the column names only.
+
+**Dataset A — Telematics (one row per operating session):**
+`SessionID, Timestamp, MachineID, MachineType, Vertical, OperatorID, SiteID, DataSource, Latitude,
+Longitude, SessionDuration_min, EngineHours, HoursSinceService, FuelUsed_L, LoadCycles, Payload_t,
+IdlingTime_min, AvgSpeed_kmh, MaxSpeed_kmh, EngineTemp_C, HydraulicPressure_bar, RPM, FaultCode,
+SeatbeltStatus, HarshEvents, ProximityWarnings, HoursSinceBreak, FatigueScore, AmbientTemp_C,
+SafetyAlertTriggered, AnomalyFlag, AnomalyType, MaintenanceDue` (last four = ML targets).
+Rows with `DataSource=Phone` (non-telematics machines) leave the engine-sensor columns blank.
 
 | Expected outcome | ML approach | Key features |
 |---|---|---|
 | Seatbelt compliance | Rule + trend classifier | SeatbeltStatus over time |
 | Excessive idling | Threshold + IsolationForest | IdlingTime, LoadCycles |
-| Unsafe operation patterns | Classifier (Random Forest/XGBoost) | HarshEvents, Speed, ProximityWarnings |
+| Unsafe operation patterns | Classifier (Random Forest/XGBoost) | HarshEvents, MaxSpeed_kmh, ProximityWarnings |
 | Safety-alert prediction | Binary classifier (target: SafetyAlertTriggered) | Seatbelt + Idling + Harsh |
-| Predictive maintenance | Classifier/regressor (target: MaintenanceDue) | EngineHours, Temp, RPM, HydraulicPressure |
+| Predictive maintenance | Classifier/regressor (target: MaintenanceDue) | HoursSinceService, EngineTemp_C, RPM, HydraulicPressure_bar, FaultCode |
 | Fuel-efficiency anomaly | IsolationForest | FuelUsed vs LoadCycles |
 | Fatigue | On-device vision → FatigueScore label + HoursSinceBreak | camera + shift length |
 
-**Dataset B — Task history (expanded columns):**
-`TaskID, Vertical, TaskType, MachineType, MachineAge_yrs, MaterialType, TerrainSlope, Weather,
-Temperature_C, WindSpeed, OperatorSkill, OperatorExpHours, LoadVolume, HaulDistance_m, TimeOfDay,
-EstimatedTime_baseline, ActualTime(min)` (target = **ActualTime**).
-- **Task-time model = XGBoost regressor** predicting ActualTime; the app's task-card ETA (§16) is
-  **this prediction**, not the naive baseline column. Demo point: our model beats `EstimatedTime_baseline`.
+**Dataset B — Task history (one row per completed task):**
+`TaskID, Date, Vertical, SiteID, MachineID, OperatorID, TaskType, MachineType, MachineAge_yrs,
+MaterialType, TerrainSlope_deg, Weather, Temperature_C, WindSpeed_kmh, OperatorSkill,
+OperatorExpHours, LoadVolume_m3, HaulDistance_m, TimeOfDay, EstimatedTime_min, ActualTime_min`
+(target = **ActualTime_min**).
+- **Task-time model = XGBoost regressor** predicting ActualTime_min. The app's task-card ETA (§16) is
+  **this prediction**, not the naive baseline column. Demo point: our model beats `EstimatedTime_min`.
+
+**Reference tables** (`sites`, `machines`, `operators`, `task_standards`) share the keys
+`SiteID/MachineID/OperatorID`, so both datasets describe one consistent fleet. See SRS §6.5.
 
 **Synthetic generation:** Python (NumPy + Faker) encodes the real relationships seen in the samples
 (e.g. beginner + rain → +15–30% overrun; unfastened + high idle → alert) plus noise, generating both
@@ -272,10 +282,11 @@ dashboard.
 ---
 
 ## 10. Team Split (4 people)
-- **P1 — Flutter app core + UI + offline/sync + dashboard (Flutter Web).**
-- **P2 — Voice + AI companion (sherpa-onnx, Porcupine, FastAPI `/voice`+`/rag`, LLM, RAG corpus).**
-- **P3 — AR (Unity AR Foundation, exploded/animated repair + training, flutter_unity bridge, WebRTC tele-mentoring).**
-- **P4 — Backend + data + ML (FastAPI, Firestore schema, synthetic generator, task-time/anomaly/acoustic models, safety on-device integration).**
+Superseded by [`EXECUTION_PLAN.md`](EXECUTION_PLAN.md) §1, which is authoritative:
+- **P1 — Data & ML (Estimation):** data schemas, synthetic generator (`/sim`), task-time XGBoost (`/ml/estimate`).
+- **P2 — Data & ML (Safety/Behavior):** anomaly/safety/maintenance/fuel models (`/ml/anomaly`), on-device TFLite, RAG (`/rag`).
+- **P3 — AR + Model Integration:** Unity AR, flutter_unity bridge, TFLite + FastAPI clients in the app.
+- **P4 — Flutter App + Backend Infra:** app shell/screens, auth, Firebase + Firestore model, SOS/BLE, offline sync, owner dashboard.
 
 ---
 
@@ -661,7 +672,7 @@ full AR training vision.
 - **UI:** Flutter Material; bottom navbar Task | Learning Hub | SOS | Profile; vertical-adaptive theme.
 - **Hardware:** phone camera, mic, GPS, IMU, BLE; cab mount. No Cat hardware required.
 - **Software/APIs:** Firebase (Auth/Firestore/Storage/FCM/Functions); FastAPI (`/ml/*`, `/rag`,
-  `/voice`, `/sim`, `/signal`); LLM (Gemini/Claude); OpenWeatherMap; Google Maps; Unity via
+  `/voice`, `/sim`, `/signal`); LLM (Gemini/Claude); Open-Meteo; Google Maps; Unity via
   flutter_unity_widget.
 - **Comms:** HTTPS/REST + WebSocket (signaling); BLE advertise/scan + Nearby Connections (offline).
 

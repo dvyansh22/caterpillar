@@ -8,7 +8,6 @@ library;
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../core/theme.dart';
 import '../../../services/ar_bridge/ar_message.dart';
@@ -142,7 +141,7 @@ class _ArRepairScreenState extends ConsumerState<ArRepairScreen>
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.close_rounded),
-          onPressed: () => context.go('/learning-hub'),
+          onPressed: () => Navigator.of(context).maybePop(),
         ),
         title: const Text('AR Field Repair'),
         actions: [

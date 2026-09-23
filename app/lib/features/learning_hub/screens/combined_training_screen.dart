@@ -14,7 +14,6 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../core/theme.dart';
 import '../motion/frame_motion_tracker.dart';
@@ -520,7 +519,7 @@ class _CombinedTrainingScreenState extends ConsumerState<CombinedTrainingScreen>
           children: [
             _GlassButton(
               icon: Icons.close_rounded,
-              onTap: () => context.go('/learning-hub'),
+              onTap: () => Navigator.of(context).maybePop(),
             ),
             const Spacer(),
             // All status chips grouped on the right side.
@@ -1058,7 +1057,7 @@ class _CombinedComplete extends StatelessWidget {
                   style: TextStyle(color: CatColors.textSecondary)),
               const SizedBox(height: 24),
               ElevatedButton.icon(
-                onPressed: () => context.go('/learning-hub'),
+                onPressed: () => Navigator.of(context).maybePop(),
                 icon: const Icon(Icons.arrow_back_rounded),
                 label: const Text('Back to Learning Hub'),
               ),
