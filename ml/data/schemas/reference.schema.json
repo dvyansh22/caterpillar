@@ -1,0 +1,63 @@
+{
+  "dataset": "reference",
+  "label": "Reference tables — sites, machines, operators, task standards",
+  "version": "1.0",
+  "owner": "P1",
+  "consumers": ["P2", "P4"],
+  "note": "Firestore shapes for machines/users are PROPOSED to P4 (owner of the Firestore model).",
+  "null_encoding": "empty cell",
+  "tables": {
+    "sites": {
+      "file": "ml/data/synthetic/sites.csv",
+      "primary_key": ["SiteID"],
+      "columns": [
+        {"name": "SiteID", "type": "string", "pattern": "^SITE\\d{2}$", "nullable": false},
+        {"name": "SiteName", "type": "string", "nullable": false},
+        {"name": "Vertical", "type": "enum", "allowed": ["construction", "mining"], "nullable": false},
+        {"name": "Latitude", "type": "float", "unit": "deg", "range": [-90, 90], "nullable": false},
+        {"name": "Longitude", "type": "float", "unit": "deg", "range": [-180, 180], "nullable": false}
+      ]
+    },
+    "machines": {
+      "file": "ml/data/synthetic/machines.csv",
+      "primary_key": ["MachineID"],
+      "firestore_collection": "machines",
+      "columns": [
+        {"name": "MachineID", "type": "string", "pattern": "^[A-Z]{2,3}\\d{3}$", "nullable": false},
+        {"name": "MachineType", "type": "enum", "allowed_ref": "telematics.enums.MachineType", "nullable": false},
+        {"name": "Model", "type": "string", "nullable": false, "description": "Model name, e.g. 320 or 777."},
+        {"name": "Vertical", "type": "enum", "allowed": ["construction", "mining"], "nullable": false},
+        {"name": "SiteID", "type": "string", "nullable": false},
+        {"name": "HasTelematics", "type": "bool", "nullable": false, "description": "false = legacy machine; its sessions have DataSource=Phone."},
+        {"name": "MachineAge_yrs", "type": "float", "unit": "yr", "range": [0, 20], "nullable": false},
+        {"name": "EngineHours", "type": "float", "unit": "h", "range": [0, 100000], "nullable": false},
+        {"name": "LastServiceHrs", "type": "float", "unit": "h", "range": [0, 100000], "nullable": false, "description": "EngineHours reading at the last service."}
+      ]
+    },
+    "operators": {
+      "file": "ml/data/synthetic/operators.csv",
+      "primary_key": ["OperatorID"],
+      "firestore_collection": "users",
+      "columns": [
+        {"name": "OperatorID", "type": "string", "pattern": "^OP\\d{4}$", "nullable": false},
+        {"name": "Name", "type": "string", "nullable": false, "description": "Faker-generated; synthetic, no real PII."},
+        {"name": "Vertical", "type": "enum", "allowed": ["construction", "mining"], "nullable": false},
+        {"name": "SiteID", "type": "string", "nullable": false},
+        {"name": "OperatorSkill", "type": "enum", "allowed": ["Beginner", "Intermediate", "Expert"], "nullable": false},
+        {"name": "OperatorExpHours", "type": "float", "unit": "h", "range": [0, 20000], "nullable": false}
+      ]
+    },
+    "task_standards": {
+      "file": "ml/data/synthetic/task_standards.csv",
+      "primary_key": ["Vertical", "TaskType"],
+      "description": "Planner baseline per task type. Source of tasks.EstimatedTime_min and /ml/estimate baseline_minutes.",
+      "columns": [
+        {"name": "Vertical", "type": "enum", "allowed": ["construction", "mining"], "nullable": false},
+        {"name": "TaskType", "type": "enum", "allowed_ref": "tasks.enums.TaskType", "nullable": false},
+        {"name": "StdTime_min", "type": "float", "unit": "min", "nullable": false, "description": "Standard duration at the reference volume/distance."},
+        {"name": "RefVolume_m3", "type": "float", "unit": "m3", "nullable": false},
+        {"name": "RefHaulDistance_m", "type": "float", "unit": "m", "nullable": false, "description": "0 for non-haul task types."}
+      ]
+    }
+  }
+}
