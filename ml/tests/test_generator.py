@@ -80,6 +80,46 @@ def test_phone_rows_have_no_engine_sensors(frames):
     assert phone[["FuelUsed_L", "EngineTemp_C", "HydraulicPressure_bar", "RPM", "FaultCode"]].isna().all().all()
 
 
+def _serving_rules(r) -> str:
+    """Per-session AnomalyType using only catalog helpers, as /ml/anomaly must."""
+    lim = C.anomaly_limits(r.Vertical, r.MachineType)
+    if r.HarshEvents >= 4 or r.MaxSpeed_kmh > lim.speed_limit_kmh or r.ProximityWarnings >= 3:
+        return "UnsafeOperation"
+    if pd.notna(r.EngineTemp_C) and r.EngineTemp_C > C.OVERHEAT_TEMP_C:
+        return "OverheatRisk"
+    fuel = None if pd.isna(r.FuelUsed_L) else r.FuelUsed_L
+    ratio = C.fuel_ratio(fuel, r.LoadCycles, r.Vertical, r.MachineType)
+    if ratio is not None and ratio > C.FUEL_RATIO_LIMIT:
+        return "FuelAnomaly"
+    return "ExcessiveIdle" if r.IdlingTime_min / r.SessionDuration_min > 0.5 else "None"
+
+
+def test_labels_reproducible_per_session_from_catalog(frames):
+    t = frames["telematics"]
+    assert all(_serving_rules(r) == r.AnomalyType for r in t.itertuples())
+
+
+def test_every_machine_type_has_limits():
+    for vertical, types in C.MACHINE_TYPES.items():
+        for mtype in types:
+            assert C.anomaly_limits(vertical, mtype) is not None
+    assert C.anomaly_limits("mining", "Excavator") is None
+
+
+def test_zero_load_cycles_is_never_a_fuel_anomaly():
+    assert C.fuel_ratio(50.0, 0, "construction", "Excavator") is None
+    assert C.fuel_ratio(None, 10, "construction", "Excavator") is None
+    assert C.fuel_ratio(19.9, 10, "construction", "Excavator") == pytest.approx(1.0)
+
+
+def test_both_temperature_thresholds_have_examples(frames):
+    t = frames["telematics"]
+    no_fault = t["FaultCode"].isna()
+    between = no_fault & t["EngineTemp_C"].between(C.MAINTENANCE_TEMP_C, C.OVERHEAT_TEMP_C, inclusive="right")
+    assert between.sum() > 5  # models must see 105-110 °C sessions to learn the 105 °C line
+    assert (no_fault & (t["EngineTemp_C"] > C.OVERHEAT_TEMP_C)).sum() > 5
+
+
 def test_anomaly_flag_matches_type(frames):
     d = frames["telematics"]
     assert (d["AnomalyFlag"].eq("Yes") == d["AnomalyType"].ne("None")).all()

@@ -36,6 +36,13 @@ the patterns the models should learn.
 - **`/ml/anomaly` request fields map to columns:** `idling_time_min → IdlingTime_min`,
   `load_cycles → LoadCycles`, `seatbelt_status → SeatbeltStatus`, `harsh_events → HarshEvents`,
   `speed_kmh → MaxSpeed_kmh`.
+- **Shared per-type limits (single source of truth):** `ml/generators/catalog.py`.
+  - `anomaly_limits(vertical, machine_type)` returns the speed limit and fuel norm.
+  - `fuel_ratio(fuel_used_l, load_cycles, vertical, machine_type)` returns `None` for 0 cycles, no fuel data or an unknown type.
+  - `FUEL_RATIO_LIMIT`, `OVERHEAT_TEMP_C` and `MAINTENANCE_TEMP_C` are the thresholds.
+
+  The generator labels with exactly these, so `/ml/anomaly` must use them too, or its rules disagree
+  with the labels. The backend can import `ml` via `backend/app/core/ml_repo.ensure_ml_importable()`.
 - **Split by `MachineID`** or by time, not randomly. Otherwise sessions from the same machine leak between train and test.
 
 ```python

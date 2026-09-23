@@ -210,8 +210,8 @@ in [`ml/data/schemas/`](../ml/data/schemas/). Changing a column requires sign-of
   FatigueScore > 0.7). Otherwise 3%. Overall about 7%.
 - **AnomalyType:**
   - idle_ratio > 0.5 → ExcessiveIdle.
-  - HarshEvents ≥ 4, MaxSpeed above the machine type's speed limit, or ProximityWarnings ≥ 3 → UnsafeOperation.
-  - FuelUsed_L / LoadCycles > 1.5× the norm (median fuel per cycle for that vertical + machine type, over rows with LoadCycles > 0) → FuelAnomaly.
+  - HarshEvents ≥ 4, MaxSpeed above the machine type's speed limit (`catalog.anomaly_limits`), or ProximityWarnings ≥ 3 → UnsafeOperation.
+  - FuelUsed_L / LoadCycles > 1.5× the machine type's fixed fuel norm (`catalog.FUEL_NORM_L_PER_CYCLE`) → FuelAnomaly. Never when LoadCycles = 0 (that is an idling problem) or on Phone rows (no fuel data).
   - EngineTemp_C > 110 → OverheatRisk.
   - If several apply, keep the most severe (UnsafeOperation > OverheatRisk > FuelAnomaly > ExcessiveIdle). Overall about 11%.
 - **MaintenanceDue:** Yes if HoursSinceService > 500 (construction) or > 400 (mining), a FaultCode is

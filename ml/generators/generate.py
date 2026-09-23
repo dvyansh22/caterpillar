@@ -335,7 +335,9 @@ def _telematics_for(vertical: str, n: int, rng: np.random.Generator, fleet: Flee
 
     engine_temp = 84 + 0.15 * (ambient - 20) + rng.normal(0, 3, n) + 0.01 * np.maximum(0, since_service - interval)
     engine_temp = np.where(fault == "ENGINE_OVERHEAT", rng.uniform(106, 118, n), engine_temp)
-    engine_temp = np.where(rng.random(n) < 0.015, rng.uniform(111, 118, n), engine_temp)
+    # Hot-running sessions span 103-118 °C so both the 105 °C (maintenance) and 110 °C (overheat)
+    # thresholds have examples on each side; otherwise models can't learn where the lines are.
+    engine_temp = np.where(rng.random(n) < 0.03, rng.uniform(103, 118, n), engine_temp)
     hydraulic = np.where(fault == "HYD_PRESSURE_LOW", rng.uniform(150, 185, n), rng.uniform(200, 320, n))
     rpm = idle_ratio * 750 + (1 - idle_ratio) * rng.uniform(1300, 1900, n) + rng.normal(0, 40, n)
 
@@ -373,12 +375,20 @@ def _telematics_for(vertical: str, n: int, rng: np.random.Generator, fleet: Flee
         "FatigueScore": fatigue.round(3),
         "AmbientTemp_C": np.clip(ambient, -20, 55).round(1),
     })
-    return _label_telematics(df, rng, limit)
+    return _label_telematics(df, rng)
 
 
-def _label_telematics(df: pd.DataFrame, rng: np.random.Generator, speed_limit: np.ndarray) -> pd.DataFrame:
-    """Apply the SRS §6.1 ground-truth rules. Group statistics are per (Vertical, MachineType)."""
+def _label_telematics(df: pd.DataFrame, rng: np.random.Generator) -> pd.DataFrame:
+    """Apply the SRS §6.1 ground-truth rules.
+
+    Per-type limits come from `catalog.anomaly_limits` / `catalog.fuel_ratio`, the same functions
+    /ml/anomaly uses, so a single session is judged identically at training and serving time. Only
+    the safety-alert "bottom quartile of LoadCycles" is a fleet statistic (per Vertical + MachineType).
+    """
     groups = [df["Vertical"], df["MachineType"]]
+    keys = list(zip(df["Vertical"], df["MachineType"]))
+    speed_limit = np.array([C.anomaly_limits(*k).speed_limit_kmh for k in keys])
+    fuel_norm = np.array([C.anomaly_limits(*k).fuel_norm_l_per_cycle for k in keys])
     idle_ratio = df["IdlingTime_min"] / df["SessionDuration_min"]
     unfastened = df["SeatbeltStatus"].eq("Unfastened")
 
@@ -389,19 +399,19 @@ def _label_telematics(df: pd.DataFrame, rng: np.random.Generator, speed_limit: n
         [0.9, 0.7], default=0.03)
     df["SafetyAlertTriggered"] = np.where(rng.random(len(df)) < p_alert, "Yes", "No")
 
-    fuel_per_cycle = (df["FuelUsed_L"] / df["LoadCycles"]).where(df["LoadCycles"] > 0)
-    fuel_norm = fuel_per_cycle.groupby(groups).transform("median")
+    # Vectorised catalog.fuel_ratio: undefined (never an anomaly) without fuel data or with 0 cycles.
+    fuel_ratio = (df["FuelUsed_L"] / df["LoadCycles"]).where(df["LoadCycles"] > 0) / fuel_norm
     anomaly = np.select(  # most severe first
         [(df["HarshEvents"] >= 4) | (df["MaxSpeed_kmh"] > speed_limit) | (df["ProximityWarnings"] >= 3),
-         df["EngineTemp_C"] > 110,
-         fuel_per_cycle > 1.5 * fuel_norm,
+         df["EngineTemp_C"] > C.OVERHEAT_TEMP_C,
+         fuel_ratio > C.FUEL_RATIO_LIMIT,
          idle_ratio > 0.5],
         ["UnsafeOperation", "OverheatRisk", "FuelAnomaly", "ExcessiveIdle"], default="None")
     df["AnomalyFlag"] = np.where(anomaly != "None", "Yes", "No")
     df["AnomalyType"] = anomaly
 
     interval = df["Vertical"].map(C.SERVICE_INTERVAL_H)
-    due = (df["HoursSinceService"] > interval) | df["FaultCode"].notna() | (df["EngineTemp_C"] > 105)
+    due = (df["HoursSinceService"] > interval) | df["FaultCode"].notna() | (df["EngineTemp_C"] > C.MAINTENANCE_TEMP_C)
     df["MaintenanceDue"] = np.where(due, "Yes", "No")
     return df
 

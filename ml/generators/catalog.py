@@ -7,6 +7,8 @@ No third-party imports, so the backend can import it cheaply. Enum values must m
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 VERTICALS: tuple[str, ...] = ("construction", "mining")
 
 SKILLS: tuple[str, ...] = ("Beginner", "Intermediate", "Expert")
@@ -89,6 +91,51 @@ MACHINE_SPECS: dict[tuple[str, str], dict] = {
 MACHINE_TYPES: dict[str, tuple[str, ...]] = {
     v: tuple(t for (vv, t) in MACHINE_SPECS if vv == v) for v in VERTICALS
 }
+
+# ---- Anomaly limits (SRS §6.1) — single source of truth for the generator AND /ml/anomaly (P2) ----
+# Normal fuel burned per load cycle for each machine type (L/cycle), idle burn included. Values are
+# the medians of the v1.0 generator output, fixed here so a single session can be checked at serving time.
+FUEL_NORM_L_PER_CYCLE: dict[tuple[str, str], float] = {
+    ("construction", "Excavator"): 1.99,
+    ("construction", "Wheel Loader"): 1.41,
+    ("construction", "Dozer"): 3.77,
+    ("construction", "Motor Grader"): 2.60,
+    ("construction", "Backhoe Loader"): 1.11,
+    ("mining", "Haul Truck"): 35.40,
+    ("mining", "Hydraulic Shovel"): 12.82,
+    ("mining", "Wheel Loader"): 5.42,
+    ("mining", "Dozer"): 6.71,
+    ("mining", "Drill"): 21.60,
+}
+FUEL_RATIO_LIMIT = 1.5  # FuelAnomaly if fuel per cycle > 1.5 x norm
+MAINTENANCE_TEMP_C = 105.0  # MaintenanceDue if EngineTemp_C above this
+OVERHEAT_TEMP_C = 110.0  # OverheatRisk if EngineTemp_C above this
+
+
+@dataclass(frozen=True)
+class AnomalyLimits:
+    speed_limit_kmh: float  # UnsafeOperation if MaxSpeed_kmh is above this
+    fuel_norm_l_per_cycle: float
+
+
+def anomaly_limits(vertical: str, machine_type: str) -> AnomalyLimits | None:
+    """Per-machine-type limits used by the SRS §6.1 rules; None for an unknown vertical/type."""
+    key = (vertical, machine_type)
+    if key not in MACHINE_SPECS:
+        return None
+    return AnomalyLimits(MACHINE_SPECS[key]["speed_limit_kmh"], FUEL_NORM_L_PER_CYCLE[key])
+
+
+def fuel_ratio(fuel_used_l: float | None, load_cycles: float | None, vertical: str, machine_type: str) -> float | None:
+    """Fuel per load cycle as a multiple of the type's norm.
+
+    None when it can't be judged: no fuel reading (phone-only machine), unknown type, or zero load
+    cycles. A session with no cycles is an idling problem (ExcessiveIdle), never a FuelAnomaly.
+    """
+    limits = anomaly_limits(vertical, machine_type)
+    if limits is None or fuel_used_l is None or load_cycles is None or load_cycles <= 0:
+        return None
+    return fuel_used_l / load_cycles / limits.fuel_norm_l_per_cycle
 
 # ---- Task standards ---------------------------------------------------------------------
 # Per (vertical, task type):
