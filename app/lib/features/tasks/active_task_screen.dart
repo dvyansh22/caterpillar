@@ -7,6 +7,8 @@ import '../../core/app_state.dart';
 import '../../core/nav.dart';
 import '../../core/tokens.dart';
 import '../../data/models.dart';
+import '../../services/voice/voice_providers.dart';
+import '../../services/voice/voice_service.dart';
 
 /// 06 Active task — elapsed time + voice log (FR-TASK-3, FR-VOICE-1/2).
 class ActiveTaskScreen extends ConsumerStatefulWidget {
@@ -18,8 +20,8 @@ class ActiveTaskScreen extends ConsumerStatefulWidget {
 
 class _ActiveTaskScreenState extends ConsumerState<ActiveTaskScreen> with SingleTickerProviderStateMixin {
   Timer? _tick;
-  Timer? _recTimer;
   bool _recording = false;
+  String _interim = '';
   late final AnimationController _pulse =
       AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat();
 
@@ -34,24 +36,52 @@ class _ActiveTaskScreenState extends ConsumerState<ActiveTaskScreen> with Single
   @override
   void dispose() {
     _tick?.cancel();
-    _recTimer?.cancel();
     _pulse.dispose();
     super.dispose();
   }
 
   String _mmss(int s) => '${(s ~/ 60).toString().padLeft(2, '0')}:${(s % 60).toString().padLeft(2, '0')}';
 
-  void _toggleVoice(OperatorUser user, String taskId, int elapsedSec) {
-    if (_recording) return;
-    setState(() => _recording = true);
-    _recTimer = Timer(const Duration(milliseconds: 2600), () {
-      if (!mounted) return;
-      final list = ref.read(appProvider).logs[taskId] ?? const [];
-      final text = user.voice[list.length % user.voice.length];
-      final sync = user.vertical == Vertical.mining ? 'Queued, no signal' : 'Synced';
-      ref.read(appProvider.notifier).addVoiceLog(taskId, VoiceLog(text: text, time: _mmss(elapsedSec), sync: sync));
-      setState(() => _recording = false);
+  /// Real multilingual speech-to-text (FR-VOICE-1/3). Tap to start, tap to stop.
+  Future<void> _onMicTap(OperatorUser user, String taskId) async {
+    final voice = ref.read(voiceServiceProvider);
+    if (_recording) {
+      await voice.stop();
+      return; // the final result arrives via onResult(isFinal: true)
+    }
+    final lang = ref.read(voiceLanguageProvider);
+    setState(() {
+      _recording = true;
+      _interim = '';
     });
+    await voice.listen(
+      localeId: lang.localeId,
+      onResult: (text, isFinal) {
+        if (!mounted) return;
+        setState(() => _interim = text);
+        if (isFinal) {
+          final t = text.trim();
+          if (t.isNotEmpty) {
+            final start = ref.read(appProvider).activeStartMs ?? DateTime.now().millisecondsSinceEpoch;
+            final sec = ((DateTime.now().millisecondsSinceEpoch - start) / 1000).floor();
+            final sync = user.vertical == Vertical.mining ? 'Queued, no signal' : 'Synced';
+            ref.read(appProvider.notifier).addVoiceLog(taskId, VoiceLog(text: t, time: _mmss(sec), sync: sync));
+          }
+          setState(() {
+            _recording = false;
+            _interim = '';
+          });
+        }
+      },
+      onError: (m) {
+        if (!mounted) return;
+        setState(() {
+          _recording = false;
+          _interim = '';
+        });
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+      },
+    );
   }
 
   @override
@@ -67,6 +97,7 @@ class _ActiveTaskScreenState extends ConsumerState<ActiveTaskScreen> with Single
         : ((DateTime.now().millisecondsSinceEpoch - app.activeStartMs!) / 1000).floor().clamp(0, 999999);
     final progress = (elapsedSec / (task.eta * 60)).clamp(0.0, 1.0);
     final logs = app.logs[activeId] ?? const [];
+    final selectedLang = ref.watch(voiceLanguageProvider);
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 88),
@@ -114,48 +145,77 @@ class _ActiveTaskScreenState extends ConsumerState<ActiveTaskScreen> with Single
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(color: AppColors.card, borderRadius: BorderRadius.circular(kRadiusCard), border: Border.all(color: AppColors.divider)),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              GestureDetector(
-                onTap: () => _toggleVoice(user, task.id, elapsedSec),
-                child: SizedBox(
-                  width: 84,
-                  height: 84,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      if (_recording)
-                        AnimatedBuilder(
-                          animation: _pulse,
-                          builder: (context, _) => Container(
-                            width: 72 * (1 + 0.4 * _pulse.value),
-                            height: 72 * (1 + 0.4 * _pulse.value),
-                            decoration: BoxDecoration(shape: BoxShape.circle, color: acc.base.withValues(alpha: 0.4 * (1 - _pulse.value))),
+              Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => _onMicTap(user, task.id),
+                    child: SizedBox(
+                      width: 84,
+                      height: 84,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          if (_recording)
+                            AnimatedBuilder(
+                              animation: _pulse,
+                              builder: (context, _) => Container(
+                                width: 72 * (1 + 0.4 * _pulse.value),
+                                height: 72 * (1 + 0.4 * _pulse.value),
+                                decoration: BoxDecoration(shape: BoxShape.circle, color: acc.base.withValues(alpha: 0.4 * (1 - _pulse.value))),
+                              ),
+                            ),
+                          Container(
+                            width: 72,
+                            height: 72,
+                            decoration: BoxDecoration(shape: BoxShape.circle, color: _recording ? AppColors.ink : acc.base),
+                            child: Icon(_recording ? Icons.stop : Icons.mic, size: 30, color: _recording ? acc.base : AppColors.ink),
                           ),
-                        ),
-                      Container(
-                        width: 72,
-                        height: 72,
-                        decoration: BoxDecoration(shape: BoxShape.circle, color: _recording ? AppColors.ink : acc.base),
-                        child: Icon(Icons.mic, size: 30, color: _recording ? acc.base : AppColors.ink),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(_recording ? 'Listening…' : 'Voice log',
+                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: AppColors.ink)),
+                        const SizedBox(height: 4),
+                        Text(_recording ? 'Speak now. Tap again to stop.' : 'Tap and speak in your language.',
+                            style: const TextStyle(fontSize: 14, height: 20 / 14, color: AppColors.muted)),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(_recording ? 'Listening…' : 'Voice log',
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: AppColors.ink)),
-                    const SizedBox(height: 4),
-                    Text(_recording ? 'Describe what you see. Transcribed on the phone.' : 'Tap and say what you notice. Works offline.',
-                        style: const TextStyle(fontSize: 14, height: 20 / 14, color: AppColors.muted)),
-                  ],
-                ),
+              const SizedBox(height: 12),
+              // Language picker (English / Hindi / Tamil)
+              Wrap(
+                spacing: 8,
+                children: [
+                  for (final l in kVoiceLanguages)
+                    ChoiceChip(
+                      label: Text(l.label),
+                      selected: selectedLang.localeId == l.localeId,
+                      onSelected: _recording ? null : (_) => ref.read(voiceLanguageProvider.notifier).set(l),
+                      selectedColor: acc.tint,
+                      showCheckmark: false,
+                    ),
+                ],
               ),
+              if (_recording && _interim.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: AppColors.surface2, borderRadius: BorderRadius.circular(kRadiusSmall)),
+                  child: Text(_interim, style: const TextStyle(fontSize: 15, height: 22 / 15, color: AppColors.ink)),
+                ),
+              ],
             ],
           ),
         ),

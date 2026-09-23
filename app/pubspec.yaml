@@ -25,6 +25,7 @@ dependencies:
   cloud_firestore: ^6.10.0
   dio: ^5.11.1
   camera: ^0.12.1
+  speech_to_text: ^7.5.0
 
 dev_dependencies:
   flutter_test:
