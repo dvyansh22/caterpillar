@@ -57,4 +57,6 @@ class CatColors {
   static const info = Color(0xFF2D6CDF);
   static const textSecondary = Color(0xFF5F5B52); // muted
   static const textMuted = Color(0xFF7A766C); // muted-2
+  static const textPrimary = Color(0xFF1D1B16); // ink
+  static const constructionSurface = Color(0xFF1E1E2C); // dark surface
 }

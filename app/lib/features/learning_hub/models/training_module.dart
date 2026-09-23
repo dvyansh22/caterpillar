@@ -99,13 +99,13 @@ class LessonStep {
 abstract final class DefaultModules {
   static const steeringControl = TrainingModule(
     id: 'steering_control',
-    title: 'Crane Boom Control',
-    description: 'Practise machine controls by moving a computer mouse. Move it '
-        'forward/back to raise or lower the crane boom, and left/right to swing '
-        'the cab — the app tracks your motion in real time.',
+    title: 'Gear & Boom Control',
+    description: 'Grip the red-capped controller and move it forward/back to '
+        'raise or lower the crane boom, and left/right to swing the cab. The '
+        'app tracks the red cap in real time.',
     iconName: 'sports_esports',
     difficulty: ModuleDifficulty.beginner,
-    everydayObject: 'Computer Mouse',
+    everydayObject: 'Red Cap',
     machineControl: 'Crane Boom & Swing',
     steps: [
       LessonStep(
@@ -229,6 +229,44 @@ abstract final class DefaultModules {
     ],
   );
 
+  static const leverControl = TrainingModule(
+    id: 'lever_control',
+    title: 'Hydraulic Lever',
+    description: 'Operate a proportional machine lever by sliding the '
+        'blue-knob controller along its channel. Slide to the top, middle, and '
+        'bottom stops — the app reads the lever position in real time.',
+    iconName: 'tune',
+    difficulty: ModuleDifficulty.intermediate,
+    everydayObject: 'Blue Knob',
+    machineControl: 'Hydraulic Boom Lever',
+    steps: [
+      LessonStep(
+        index: 0,
+        instruction: 'Slide the adapter to the TOP stop.',
+        hint: 'Push the adapter all the way up the channel.',
+        expectedAction: 'lever_top',
+      ),
+      LessonStep(
+        index: 1,
+        instruction: 'Slide down to the MIDDLE stop.',
+        hint: 'Hold the adapter steady at the mid point.',
+        expectedAction: 'lever_mid',
+      ),
+      LessonStep(
+        index: 2,
+        instruction: 'Slide to the BOTTOM stop.',
+        hint: 'Bring the adapter all the way down.',
+        expectedAction: 'lever_bottom',
+      ),
+      LessonStep(
+        index: 3,
+        instruction: 'Raise it back to the TOP.',
+        hint: 'Return the lever to full.',
+        expectedAction: 'lever_top',
+      ),
+    ],
+  );
+
   static const fieldRepair = TrainingModule(
     id: 'field_repair',
     title: 'Field Repair Basics',
@@ -272,10 +310,29 @@ abstract final class DefaultModules {
     ],
   );
 
+  static const combinedControl = TrainingModule(
+    id: 'combined_control',
+    title: 'Operator Console Drill',
+    description: 'Run a full operator console in landscape: the app guides you '
+        'through the RED gear and the BLUE lever one by one, tracking both at '
+        'once. Hold the phone sideways with both controllers in view.',
+    iconName: 'sports_esports',
+    difficulty: ModuleDifficulty.advanced,
+    everydayObject: 'Red Gear + Blue Lever',
+    machineControl: 'Full Machine Console',
+    steps: [
+      LessonStep(index: 0, instruction: 'Red gear — forward', hint: 'Move the red gear away from you.'),
+      LessonStep(index: 1, instruction: 'Red gear — back', hint: 'Pull the red gear toward you.'),
+      LessonStep(index: 2, instruction: 'Red gear — left', hint: 'Move the red gear left.'),
+      LessonStep(index: 3, instruction: 'Red gear — right', hint: 'Move the red gear right.'),
+      LessonStep(index: 4, instruction: 'Blue lever — up', hint: 'Slide the blue lever up.'),
+      LessonStep(index: 5, instruction: 'Blue lever — down', hint: 'Slide the blue lever down.'),
+    ],
+  );
+
   static const List<TrainingModule> all = [
+    combinedControl,
     steeringControl,
-    throttleControl,
-    bucketControl,
-    fieldRepair,
+    leverControl,
   ];
 }
