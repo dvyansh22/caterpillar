@@ -90,6 +90,10 @@ class TaskDetailScreen extends ConsumerWidget {
           const SizedBox(height: 12),
           for (final a in est.advisories) _advisory(a),
         ],
+        if (live && est.bestStart != null && est.bestStart!.minutesSaved >= 5) ...[
+          const SizedBox(height: 12),
+          _bestStart(acc, est.bestStart!),
+        ],
         const SizedBox(height: 12),
         _infoList([
           ('Weather', task.weather),
@@ -183,6 +187,39 @@ class TaskDetailScreen extends ConsumerWidget {
           ],
         ),
       );
+
+  Widget _bestStart(AccentPalette acc, BestStart b) {
+    final t = DateTime.tryParse(b.startTime);
+    final hhmm = t != null
+        ? '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}'
+        : b.startTime;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(kRadiusCard),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.schedule, size: 20, color: acc.ink),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Start at $hhmm to save ${b.minutesSaved.round()} min',
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.ink)),
+                const SizedBox(height: 2),
+                Text(b.reason, style: const TextStyle(fontSize: 13, height: 18 / 13, color: AppColors.muted)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _backLink(String text, VoidCallback onTap) => Align(
         alignment: Alignment.centerLeft,

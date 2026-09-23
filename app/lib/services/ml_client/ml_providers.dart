@@ -26,11 +26,16 @@ final taskEstimateProvider =
   final tasks = ref.watch(tasksProvider);
   final user = ref.watch(currentUserProvider);
   final task = tasks.firstWhere((t) => t.id == taskId, orElse: () => tasks.first);
+  // The operator's site (e.g. "SITE01 · Metro depot") drives the live weather
+  // forecast; send just the "SITE0x" id when we have one.
+  final siteId = user.site.split('·').first.trim();
   return ref.read(mlClientProvider).getEstimate(EstimateRequest(
         taskType: task.type,
         weather: task.weather,
         operatorSkill: user.skill,
         machineAgeYears: task.age.toDouble(),
         vertical: user.vertical == Vertical.mining ? 'mining' : 'construction',
+        siteId: siteId.startsWith('SITE') ? siteId : null,
+        suggestStart: true,
       ));
 });

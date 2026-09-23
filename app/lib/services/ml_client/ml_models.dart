@@ -86,6 +86,28 @@ class EtaFactor {
   final String detail;
 }
 
+/// A suggested better start time in the next 24 h (from `suggest_start`).
+class BestStart {
+  const BestStart({
+    required this.startTime,
+    required this.estimatedMinutes,
+    required this.minutesSaved,
+    required this.reason,
+  });
+
+  factory BestStart.fromJson(Map<String, dynamic> j) => BestStart(
+    startTime: j['start_time'] as String? ?? '',
+    estimatedMinutes: (j['estimated_minutes'] as num?)?.toDouble() ?? 0,
+    minutesSaved: (j['minutes_saved'] as num?)?.toDouble() ?? 0,
+    reason: j['reason'] as String? ?? '',
+  );
+
+  final String startTime;
+  final double estimatedMinutes;
+  final double minutesSaved;
+  final String reason;
+}
+
 class EstimateResponse {
   const EstimateResponse({
     required this.estimatedMinutes,
@@ -94,12 +116,14 @@ class EstimateResponse {
     this.weatherSource,
     this.factors = const [],
     this.advisories = const [],
+    this.bestStart,
   });
 
   factory EstimateResponse.fromJson(Map<String, dynamic> json) {
     // `estimated_minutes` is the backend field; keep `predicted_minutes` as a
     // fallback so an older stub still parses.
     final minutes = json['estimated_minutes'] ?? json['predicted_minutes'];
+    final bs = json['best_start'];
     return EstimateResponse(
       estimatedMinutes: (minutes as num).toDouble(),
       baselineMinutes: (json['baseline_minutes'] as num?)?.toDouble(),
@@ -109,6 +133,7 @@ class EstimateResponse {
           .map((e) => EtaFactor.fromJson(e as Map<String, dynamic>))
           .toList(),
       advisories: List<String>.from((json['advisories'] as List?) ?? const []),
+      bestStart: bs is Map<String, dynamic> ? BestStart.fromJson(bs) : null,
     );
   }
 
@@ -118,6 +143,7 @@ class EstimateResponse {
   final String? weatherSource;
   final List<EtaFactor> factors;
   final List<String> advisories;
+  final BestStart? bestStart;
 }
 
 // ---------------------------------------------------------------------------

@@ -5,6 +5,7 @@ import '../../core/app_state.dart';
 import '../../core/nav.dart';
 import '../../core/tokens.dart';
 import '../../data/models.dart';
+import '../../services/ml_client/ml_providers.dart';
 
 /// 04 Tasks list (FR-TASK-1/2). Cards show the ML-predicted ETA.
 class TasksScreen extends ConsumerWidget {
@@ -53,6 +54,9 @@ class _TaskCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Live ML ETA (falls back to the seed value while loading / offline).
+    final est = ref.watch(taskEstimateProvider(task.id)).asData?.value;
+    final etaMin = (est != null && est.modelVersion != 'stub-0') ? est.estimatedMinutes.round() : task.eta;
     final isActive = app.activeTaskId == task.id;
     final isDone = app.done.containsKey(task.id);
     final status = isActive ? 'In progress' : isDone ? 'Done' : 'Scheduled';
@@ -121,7 +125,7 @@ class _TaskCard extends ConsumerWidget {
                   decoration: BoxDecoration(color: acc.tint, borderRadius: BorderRadius.circular(kRadiusSmall)),
                   child: Column(
                     children: [
-                      Text('${task.eta}',
+                      Text('$etaMin',
                           style: TextStyle(fontSize: 28, height: 32 / 28, fontWeight: FontWeight.w500, color: acc.ink).merge(kTabular)),
                       Text('min', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: acc.ink)),
                     ],
