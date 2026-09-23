@@ -1,7 +1,7 @@
 name: smart_operator_assistant
 description: Smart Operator Assistant for CAT machinery — phone-first operator companion.
 publish_to: "none"
-version: 0.1.0+1
+version: 0.1.1+2
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
