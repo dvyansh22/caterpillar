@@ -11,5 +11,6 @@ jupyter==1.1.1
 # On-device model export (P2)
 tensorflow==2.19.0        # for TFLite conversion (acoustic); 2.17 needs numpy<2, clashing with the pin above
 librosa==0.10.2.post1     # MFCC features for acoustic anomaly
+opencv-python-headless==4.10.0.84   # seatbelt videos -> training photos
 
 # NOTE: keep shared pins aligned with backend/requirements.txt.

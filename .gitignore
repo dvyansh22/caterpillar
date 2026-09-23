@@ -37,6 +37,7 @@ ml/models/*.tflite
 !ml/models/acoustic_anomaly.tflite
 # Training photos contain people; raw audio is large
 ml/data/seatbelt/
+ml/data/seatbelt_videos/
 ml/data/audio/
 
 # ---- Unity (ar/) ----

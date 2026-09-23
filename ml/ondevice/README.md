@@ -61,10 +61,19 @@ A pose model only finds shoulders and hips; it cannot see the belt. So this is a
 (FR-GATE-1) uses the telematics `SeatbeltStatus` when the machine has it, and otherwise this model:
 require 3 consecutive "belt on" frames.
 
-**Real training data needed (team task):** photos from the **actual phone mount position** into
-`ml/data/seatbelt/belt/` and `ml/data/seatbelt/no_belt/` (git-ignored, contains people). Aim for 150+
-per class: different people, clothes (incl. hi-vis), belt colours, day/night/cab lighting, and
-"belt hanging but not fastened" as `no_belt`. Then: `python training/seatbelt.py`.
+**Real training data needed (team task, ~10 minutes of filming).** Easiest from short videos:
+1. Mount a phone where it will sit in the cab (for the demo: a chair with a strap across the chest).
+2. Each person records 20–60 s clips, moving naturally (turn head, lean, reach for controls):
+   - belt on → `ml/data/seatbelt_videos/belt/<name>_1.mp4`
+   - belt off, **and** belt hanging but not buckled → `ml/data/seatbelt_videos/no_belt/<name>_1.mp4`
+   Start every file name with the person's name. Vary clothes (incl. hi-vis), light and belt colour.
+   4+ people is best.
+3. `python training/seatbelt_frames.py` → centre-cropped 224×224 photos in `ml/data/seatbelt/`
+   (skips blurry and duplicate frames).
+4. `python training/seatbelt.py` → validation uses **people held out from training**, so the score
+   reflects someone the model has never seen.
+
+Both folders are git-ignored because they contain people.
 
 ---
 
@@ -94,6 +103,7 @@ abnormal ones are for measuring.
 
 ## Retraining (from `ml/`, with the ml venv)
 ```
+python training/seatbelt_frames.py                   # videos -> data/seatbelt/{belt,no_belt}
 python training/seatbelt.py                          # needs data/seatbelt/{belt,no_belt}
 python training/seatbelt.py --synthetic 400          # pipeline check without photos
 python training/acoustic.py --synthetic              # or --data <folder>

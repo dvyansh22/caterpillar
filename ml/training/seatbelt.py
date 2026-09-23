@@ -28,11 +28,42 @@ CLASSES = ["no_belt", "belt"]  # label 1 = belt on
 
 
 def load_folder(root: Path, seed: int) -> tuple[tf.data.Dataset, tf.data.Dataset]:
-    kwargs = dict(labels="inferred", class_names=CLASSES, label_mode="binary", image_size=(IMG, IMG),
-                  batch_size=32, validation_split=0.2, seed=seed)
-    train = tf.keras.utils.image_dataset_from_directory(root, subset="training", **kwargs)
-    val = tf.keras.utils.image_dataset_from_directory(root, subset="validation", **kwargs)
-    return train, val
+    """Hold out whole people (file-name prefix before the first "_") for validation.
+
+    Frames from one video are near-duplicates, so a random split would leak them into validation
+    and overstate accuracy. Falls back to a random split if there are too few people.
+    """
+    paths, labels = [], []
+    for label, name in enumerate(CLASSES):
+        for f in sorted((root / name).glob("*")):
+            if f.suffix.lower() in {".jpg", ".jpeg", ".png"}:
+                paths.append(str(f))
+                labels.append(float(label))
+    if not paths:
+        raise SystemExit(f"no photos in {root}/{{{','.join(CLASSES)}}} — see training/seatbelt_frames.py")
+    paths, labels = np.array(paths), np.array(labels)
+    people = np.array([Path(p).stem.split("_")[0].lower() for p in paths])
+
+    rng = np.random.default_rng(seed)
+    unique = rng.permutation(np.unique(people))
+    val_people = {str(p) for p in unique[: max(1, len(unique) // 4)]}
+    is_val = np.isin(people, list(val_people))
+    if len(unique) < 3 or len(set(labels[is_val])) < 2:
+        print(f"only {len(unique)} people / one label held out — using a random 20% split instead")
+        is_val = rng.random(len(paths)) < 0.2
+    else:
+        print(f"validation people (never seen in training): {sorted(val_people)}")
+
+    def dataset(mask: np.ndarray, shuffle: bool) -> tf.data.Dataset:
+        ds = tf.data.Dataset.from_tensor_slices((paths[mask], labels[mask][:, None]))
+        if shuffle:
+            ds = ds.shuffle(len(paths), seed=seed)
+        load = lambda p, y: (tf.image.resize(tf.io.decode_image(  # noqa: E731
+            tf.io.read_file(p), channels=3, expand_animations=False), (IMG, IMG)), y)
+        return ds.map(load, num_parallel_calls=tf.data.AUTOTUNE).batch(32).prefetch(tf.data.AUTOTUNE)
+
+    print(f"{int((~is_val).sum())} training / {int(is_val.sum())} validation photos")
+    return dataset(~is_val, True), dataset(is_val, False)
 
 
 def synthetic(n: int, seed: int) -> tuple[tf.data.Dataset, tf.data.Dataset]:
