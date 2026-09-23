@@ -61,21 +61,21 @@
       "p=0.9 if SeatbeltStatus=Unfastened AND idle_ratio > 0.4 AND LoadCycles in bottom quartile for MachineType (organizer rule)",
       "p=0.7 if SeatbeltStatus=Unfastened AND (HarshEvents >= 3 OR FatigueScore > 0.7)",
       "p=0.03 otherwise",
-      "target prevalence ~12%"
+      "prevalence ~7%"
     ],
     "AnomalyType": [
       "ExcessiveIdle if idle_ratio > 0.5",
       "UnsafeOperation if HarshEvents >= 4 OR MaxSpeed_kmh > type speed limit OR ProximityWarnings >= 3",
-      "FuelAnomaly if FuelUsed_L / LoadCycles > 1.5 x MachineType norm",
+      "FuelAnomaly if FuelUsed_L / LoadCycles > 1.5 x norm (median fuel per cycle per Vertical + MachineType, rows with LoadCycles > 0)",
       "OverheatRisk if EngineTemp_C > 110",
       "if several apply keep the most severe: UnsafeOperation > OverheatRisk > FuelAnomaly > ExcessiveIdle",
-      "target prevalence ~8%"
+      "prevalence ~11%"
     ],
     "MaintenanceDue": [
       "Yes if HoursSinceService > 500 (construction) or > 400 (mining)",
       "Yes if FaultCode is not null",
       "Yes if EngineTemp_C > 105",
-      "target prevalence ~15%"
+      "prevalence ~15%"
     ],
     "fleet": [
       "~40% of machines have HasTelematics=false -> all their sessions are DataSource=Phone",

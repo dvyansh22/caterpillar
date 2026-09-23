@@ -207,13 +207,13 @@ in [`ml/data/schemas/`](../ml/data/schemas/). Changing a column requires sign-of
 **Ground-truth rules** (the generator follows these, so the models should learn them). `idle_ratio = IdlingTime_min / SessionDuration_min`.
 - **SafetyAlertTriggered:** p≈0.9 if Unfastened and idle_ratio > 0.4 and LoadCycles are in the bottom
   quartile for the machine type (organizer rule). p≈0.7 if Unfastened and (HarshEvents ≥ 3 or
-  FatigueScore > 0.7). Otherwise 3%. Overall about 12%.
+  FatigueScore > 0.7). Otherwise 3%. Overall about 7%.
 - **AnomalyType:**
   - idle_ratio > 0.5 → ExcessiveIdle.
   - HarshEvents ≥ 4, MaxSpeed above the machine type's speed limit, or ProximityWarnings ≥ 3 → UnsafeOperation.
-  - FuelUsed_L / LoadCycles > 1.5× the machine type's norm → FuelAnomaly.
+  - FuelUsed_L / LoadCycles > 1.5× the norm (median fuel per cycle for that vertical + machine type, over rows with LoadCycles > 0) → FuelAnomaly.
   - EngineTemp_C > 110 → OverheatRisk.
-  - If several apply, keep the most severe (UnsafeOperation > OverheatRisk > FuelAnomaly > ExcessiveIdle). Overall about 8%.
+  - If several apply, keep the most severe (UnsafeOperation > OverheatRisk > FuelAnomaly > ExcessiveIdle). Overall about 11%.
 - **MaintenanceDue:** Yes if HoursSinceService > 500 (construction) or > 400 (mining), a FaultCode is
   present, or EngineTemp_C > 105. Overall about 15%.
 - **Fleet:** about 40% of machines have no telematics. Beginner operators idle more and have more harsh events.

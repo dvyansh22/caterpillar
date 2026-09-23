@@ -32,7 +32,7 @@ the patterns the models should learn.
   and add a `DataSource` indicator.
 - **Phone-derivable features** (always present): `IdlingTime_min`, `LoadCycles`, `SeatbeltStatus`,
   `HarshEvents`, `ProximityWarnings`, `FatigueScore`, `HoursSinceBreak`, speeds, `SessionDuration_min`.
-- **Approximate class balance:** SafetyAlert about 12%, Anomaly about 8%, MaintenanceDue about 15%.
+- **Approximate class balance:** SafetyAlert about 7%, Anomaly about 11%, MaintenanceDue about 15% (seed 42, default volume).
 - **`/ml/anomaly` request fields map to columns:** `idling_time_min → IdlingTime_min`,
   `load_cycles → LoadCycles`, `seatbelt_status → SeatbeltStatus`, `harsh_events → HarshEvents`,
   `speed_kmh → MaxSpeed_kmh`.
@@ -40,7 +40,9 @@ the patterns the models should learn.
 
 ```python
 import pandas as pd
-df = pd.read_csv("ml/data/synthetic/telematics.csv", parse_dates=["Timestamp"])
+# keep_default_na=False: otherwise pandas reads AnomalyType "None" as a missing value
+df = pd.read_csv("ml/data/synthetic/telematics.csv", parse_dates=["Timestamp"],
+                 keep_default_na=False, na_values=[""])
 y = (df["SafetyAlertTriggered"] == "Yes").astype(int)
 ```
 
