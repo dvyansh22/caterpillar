@@ -32,6 +32,12 @@ ml/models/*.pkl
 ml/models/*.joblib
 ml/models/*.tflite
 !ml/**/.gitkeep
+# On-device models ship with the app, so P3 needs them in the repo (small; see ml/ondevice/README.md)
+!ml/models/seatbelt.tflite
+!ml/models/acoustic_anomaly.tflite
+# Training photos contain people; raw audio is large
+ml/data/seatbelt/
+ml/data/audio/
 
 # ---- Unity (ar/) ----
 ar/Library/
