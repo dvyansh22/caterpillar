@@ -45,3 +45,16 @@ ThemeData buildAppTheme() {
     ),
   );
 }
+
+/// Compatibility palette for the integrated P3 AR screens (from PR #2), mapped onto
+/// the current design tokens so those screens read consistently with the redesign.
+class CatColors {
+  static const catYellow = Color(0xFFF2B21B); // construction accent
+  static const catBlack = Color(0xFF1D1B16); // ink
+  static const success = Color(0xFF1E5B24);
+  static const danger = Color(0xFFB3261E);
+  static const warning = Color(0xFFF9A825);
+  static const info = Color(0xFF2D6CDF);
+  static const textSecondary = Color(0xFF5F5B52); // muted
+  static const textMuted = Color(0xFF7A766C); // muted-2
+}

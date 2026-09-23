@@ -2,10 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/app_state.dart';
-import '../../core/nav.dart';
 import '../../core/tokens.dart';
 import '../../data/mock_data.dart';
 import '../../data/models.dart';
+import 'screens/ar_repair_screen.dart';
+import 'screens/ar_training_screen.dart';
+import 'screens/on_device_safety_screen.dart';
+
+/// Maps a redesign lesson id to a P3 training module id (real AR training).
+String moduleIdForLesson(String lessonId) =>
+    lessonId == 'steering' ? 'steering_control' : 'throttle_control';
 
 /// 07 Learning Hub — AR lessons mapping everyday objects to controls (FR-LEARN, closed loop).
 class LearningHubScreen extends ConsumerWidget {
@@ -23,11 +29,80 @@ class LearningHubScreen extends ConsumerWidget {
         Text('Practice machine controls in AR using objects you have on hand.',
             style: const TextStyle(fontSize: 15, height: 22 / 15, color: AppColors.muted)),
         const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _ToolTile(
+                icon: Icons.health_and_safety_outlined,
+                label: 'Safety monitor',
+                sub: 'Live on-device',
+                acc: acc,
+                onTap: () => Navigator.of(context)
+                    .push(MaterialPageRoute(builder: (_) => const OnDeviceSafetyScreen())),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _ToolTile(
+                icon: Icons.build_outlined,
+                label: 'AR field repair',
+                sub: 'Guided fix',
+                acc: acc,
+                onTap: () => Navigator.of(context)
+                    .push(MaterialPageRoute(builder: (_) => const ArRepairScreen())),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
         ...kLessons.map((l) => Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: _LessonCard(lesson: l, user: user, acc: acc, score: app.completed[l.id]),
             )),
       ],
+    );
+  }
+}
+
+class _ToolTile extends StatelessWidget {
+  const _ToolTile({required this.icon, required this.label, required this.sub, required this.acc, required this.onTap});
+  final IconData icon;
+  final String label;
+  final String sub;
+  final AccentPalette acc;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.card,
+      borderRadius: BorderRadius.circular(kRadiusCard),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(kRadiusCard),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(kRadiusCard),
+            border: Border.all(color: AppColors.divider),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(color: acc.tint, borderRadius: BorderRadius.circular(10)),
+                child: Icon(icon, color: acc.ink, size: 22),
+              ),
+              const SizedBox(height: 10),
+              Text(label, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.ink)),
+              Text(sub, style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -93,7 +168,8 @@ class _LessonCard extends ConsumerWidget {
             width: double.infinity,
             child: assigned
                 ? FilledButton(
-                    onPressed: () => ref.read(navProvider.notifier).openLesson(lesson.id),
+                    onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => ArTrainingScreen(moduleId: moduleIdForLesson(lesson.id)))),
                     style: FilledButton.styleFrom(
                       backgroundColor: acc.base,
                       foregroundColor: AppColors.ink,
@@ -103,7 +179,8 @@ class _LessonCard extends ConsumerWidget {
                     child: Text(cta),
                   )
                 : OutlinedButton(
-                    onPressed: () => ref.read(navProvider.notifier).openLesson(lesson.id),
+                    onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => ArTrainingScreen(moduleId: moduleIdForLesson(lesson.id)))),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.ink,
                       side: const BorderSide(color: AppColors.muted2),
