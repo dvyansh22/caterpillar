@@ -118,7 +118,7 @@ class _ArLessonScreenState extends ConsumerState<ArLessonScreen> {
           onPressed: () {
             final next = _step + 1;
             if (next >= lesson.steps.length) {
-              ref.read(appProvider.notifier).completeLesson(lesson.id, lesson.score);
+              ref.read(appProvider.notifier).completeLesson(lesson.id, lesson.title, lesson.score);
             }
             setState(() => _step = next);
           },

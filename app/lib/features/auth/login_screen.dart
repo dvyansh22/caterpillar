@@ -42,7 +42,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
     try {
       final user = await ref.read(authServiceProvider).signIn(_user.text, _pass.text);
-      ref.read(appProvider.notifier).signInAs(user);
+      await ref.read(appProvider.notifier).startSession(user);
       ref.read(navProvider.notifier).toGate();
     } on AuthException catch (e) {
       if (mounted) setState(() => _error = e.message);

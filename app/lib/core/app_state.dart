@@ -3,14 +3,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/mock_data.dart';
 import '../data/models.dart';
 import '../services/auth_service.dart';
+import '../services/data_repository.dart';
 import '../services/firebase_auth_service.dart';
+import '../services/firebase_data_repository.dart';
 import '../services/mock_auth_service.dart';
+import '../services/mock_data_repository.dart';
 import 'config.dart';
 import 'tokens.dart';
 
 /// Auth backend: mock by default, Firebase when built with USE_FIREBASE=true.
 final authServiceProvider =
     Provider<AuthService>((ref) => kUseFirebase ? FirebaseAuthService() : MockAuthService());
+
+/// Data backend (tasks/incidents/training): mock by default, Firestore with USE_FIREBASE=true.
+final dataRepositoryProvider =
+    Provider<DataRepository>((ref) => kUseFirebase ? FirebaseDataRepository() : MockDataRepository());
 
 enum GateStatus { pending, busy, pass, fail }
 
@@ -20,6 +27,7 @@ class AppData {
   const AppData({
     this.username = 'arjun',
     this.account,
+    this.tasks = const [],
     this.activeTaskId,
     this.activeStartMs,
     this.done = const {},
@@ -30,6 +38,7 @@ class AppData {
 
   final String username;
   final OperatorUser? account; // signed-in profile (from auth service)
+  final List<OperatorTask> tasks; // loaded for the session (from data repo)
   final String? activeTaskId;
   final int? activeStartMs;
   final Map<String, int> done; // taskId -> minutes
@@ -40,6 +49,7 @@ class AppData {
   AppData copyWith({
     String? username,
     Object? account = _sentinel,
+    List<OperatorTask>? tasks,
     Object? activeTaskId = _sentinel,
     Object? activeStartMs = _sentinel,
     Map<String, int>? done,
@@ -50,6 +60,7 @@ class AppData {
     return AppData(
       username: username ?? this.username,
       account: account == _sentinel ? this.account : account as OperatorUser?,
+      tasks: tasks ?? this.tasks,
       activeTaskId: activeTaskId == _sentinel ? this.activeTaskId : activeTaskId as String?,
       activeStartMs: activeStartMs == _sentinel ? this.activeStartMs : activeStartMs as int?,
       done: done ?? this.done,
@@ -68,9 +79,12 @@ class AppController extends Notifier<AppData> {
 
   OperatorUser get user => state.account ?? kUsers[state.username] ?? kUsers['arjun']!;
 
-  /// Records a successful sign-in (from [AuthService]).
-  void signInAs(OperatorUser account) =>
-      state = state.copyWith(username: account.username, account: account);
+  /// Records a successful sign-in and loads the session's tasks from the data repo.
+  Future<void> startSession(OperatorUser account) async {
+    state = state.copyWith(username: account.username, account: account);
+    final tasks = await ref.read(dataRepositoryProvider).getTasks(account.vertical);
+    state = state.copyWith(tasks: tasks);
+  }
 
   void logout() => state = const AppData();
 
@@ -93,10 +107,14 @@ class AppController extends Notifier<AppData> {
   void addVoiceLog(String taskId, VoiceLog log) {
     final existing = state.logs[taskId] ?? const [];
     state = state.copyWith(logs: {...state.logs, taskId: [log, ...existing]});
+    // Write-through to the incidents store (no-op for mock).
+    ref.read(dataRepositoryProvider).addIncident(user, taskId, log).catchError((_) {});
   }
 
-  void completeLesson(String lessonId, int score) =>
-      state = state.copyWith(completed: {...state.completed, lessonId: score});
+  void completeLesson(String lessonId, String title, int score) {
+    state = state.copyWith(completed: {...state.completed, lessonId: score});
+    ref.read(dataRepositoryProvider).saveTrainingScore(user, lessonId, title, score).catchError((_) {});
+  }
 
   void startSos() => state = state.copyWith(sosStartedMs: DateTime.now().millisecondsSinceEpoch);
   void cancelSos() => state = state.copyWith(sosStartedMs: null);
@@ -113,8 +131,9 @@ final currentUserProvider = Provider<OperatorUser>((ref) {
 /// Accent palette for the current vertical.
 final accentProvider = Provider<AccentPalette>((ref) => ref.watch(currentUserProvider).accent);
 
-/// Today's tasks for the current vertical.
+/// Today's tasks for the session (loaded via the data repo; falls back to seed data).
 final tasksProvider = Provider<List<OperatorTask>>((ref) {
-  final vertical = ref.watch(currentUserProvider).vertical;
-  return kTasks[vertical]!;
+  final data = ref.watch(appProvider);
+  if (data.tasks.isNotEmpty) return data.tasks;
+  return kTasks[data.account?.vertical ?? kUsers[data.username]?.vertical ?? Vertical.construction]!;
 });
