@@ -10,12 +10,17 @@ by `backend/` (cloud) or embedded on-device (TFLite) by the app.
 data/
 ├── raw/         # organizer-provided sample data (telematics_sample.csv, task_history_sample.csv)
 ├── synthetic/   # generated rows (git-ignored)
-└── schemas/     # frozen column definitions (the data contract)
+└── schemas/     # frozen column definitions (the data contract) — start at data/schemas/README.md
 generators/      # synthetic data generator (P1)
 training/        # task_time (P1); anomaly, safety, maintenance, acoustic (P2)
 models/          # exported .pkl / .joblib / .tflite (git-ignored)
 notebooks/       # exploration / evaluation
 ```
+
+## Data contract
+**Schema v1.0 is frozen.** See [`data/schemas/README.md`](data/schemas/README.md) and
+[`docs/SRS.md` §6](../docs/SRS.md#6-data-requirements) for every column, unit, enum and target.
+The generator writes `telematics`, `tasks`, `sites`, `machines`, `operators`, `task_standards` CSVs to `data/synthetic/`.
 
 ## Given sample data (in data/raw/)
 - **telematics_sample.csv** — Timestamp, MachineID, OperatorID, EngineHours, FuelUsed_L, LoadCycles,
