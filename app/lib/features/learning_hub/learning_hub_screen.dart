@@ -1,196 +1,393 @@
+/// Learning Hub — module list screen.
+///
+/// Shows available AR training modules with progress, difficulty,
+/// and everyday-object mapping info. P3 owns this feature.
+library;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/app_state.dart';
-import '../../core/tokens.dart';
-import '../../data/mock_data.dart';
-import '../../data/models.dart';
-import 'screens/ar_repair_screen.dart';
+import '../../core/theme.dart';
 import 'screens/ar_training_screen.dart';
-import 'screens/on_device_safety_screen.dart';
+import 'screens/combined_training_screen.dart';
+import 'models/training_module.dart';
+import 'providers/learning_hub_providers.dart';
 
-/// Maps a redesign lesson id to a P3 training module id (real AR training).
-String moduleIdForLesson(String lessonId) =>
-    lessonId == 'steering' ? 'steering_control' : 'throttle_control';
-
-/// 07 Learning Hub — AR lessons mapping everyday objects to controls (FR-LEARN, closed loop).
 class LearningHubScreen extends ConsumerWidget {
   const LearningHubScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(currentUserProvider);
-    final app = ref.watch(appProvider);
-    final acc = user.accent;
+    final modules = ref.watch(trainingModulesProvider);
+    final overallProgress = ref.watch(trainingProgressProvider);
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
-      children: [
-        Text('Practice machine controls in AR using objects you have on hand.',
-            style: const TextStyle(fontSize: 15, height: 22 / 15, color: AppColors.muted)),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: _ToolTile(
-                icon: Icons.health_and_safety_outlined,
-                label: 'Safety monitor',
-                sub: 'Live on-device',
-                acc: acc,
-                onTap: () => Navigator.of(context)
-                    .push(MaterialPageRoute(builder: (_) => const OnDeviceSafetyScreen())),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Learning Hub'),
+      ),
+      body: CustomScrollView(
+        slivers: [
+          // Overall progress header
+          SliverToBoxAdapter(
+            child: _ProgressHeader(progress: overallProgress),
+          ),
+
+          // Section title
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(20, 24, 20, 12),
+              child: Text(
+                'AR Training Modules',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: CatColors.textPrimary,
+                ),
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _ToolTile(
-                icon: Icons.build_outlined,
-                label: 'AR field repair',
-                sub: 'Guided fix',
-                acc: acc,
-                onTap: () => Navigator.of(context)
-                    .push(MaterialPageRoute(builder: (_) => const ArRepairScreen())),
-              ),
+          ),
+
+          // Module cards
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            sliver: SliverList.separated(
+              itemCount: modules.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final module = modules[index];
+                return _ModuleCard(
+                  module: module,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => module.id == 'combined_control'
+                          ? const CombinedTrainingScreen()
+                          : ArTrainingScreen(moduleId: module.id),
+                    ),
+                  ),
+                );
+              },
             ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        ...kLessons.map((l) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: _LessonCard(lesson: l, user: user, acc: acc, score: app.completed[l.id]),
-            )),
-      ],
-    );
-  }
-}
-
-class _ToolTile extends StatelessWidget {
-  const _ToolTile({required this.icon, required this.label, required this.sub, required this.acc, required this.onTap});
-  final IconData icon;
-  final String label;
-  final String sub;
-  final AccentPalette acc;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.card,
-      borderRadius: BorderRadius.circular(kRadiusCard),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(kRadiusCard),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(kRadiusCard),
-            border: Border.all(color: AppColors.divider),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(color: acc.tint, borderRadius: BorderRadius.circular(10)),
-                child: Icon(icon, color: acc.ink, size: 22),
-              ),
-              const SizedBox(height: 10),
-              Text(label, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.ink)),
-              Text(sub, style: const TextStyle(fontSize: 12, color: AppColors.muted)),
-            ],
-          ),
-        ),
+
+          const SliverToBoxAdapter(child: SizedBox(height: 100)),
+        ],
       ),
     );
   }
 }
 
-class _LessonCard extends ConsumerWidget {
-  const _LessonCard({required this.lesson, required this.user, required this.acc, required this.score});
-  final Lesson lesson;
-  final OperatorUser user;
-  final AccentPalette acc;
-  final int? score;
+// ---------------------------------------------------------------------------
+// Progress header
+// ---------------------------------------------------------------------------
+
+class _ProgressHeader extends StatelessWidget {
+  const _ProgressHeader({required this.progress});
+  final double progress;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final done = score != null;
-    final assigned = lesson.auto && !done;
-    final tag = done ? 'Completed' : lesson.auto ? 'Assigned to you' : 'Optional';
-    final (Color chipBg, Color chipInk) =
-        done ? (AppColors.successBg, AppColors.successInk) : lesson.auto ? (acc.base, AppColors.ink) : (AppColors.surface2, AppColors.ink);
-    final meta = done ? 'Score $score' : '${lesson.steps.length} steps · 3 min';
-    final note = lesson.auto ? user.flag : 'Learn the steering control using a mouse on the table.';
-    final cta = done ? 'Practice again' : 'Start lesson';
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final percentage = (progress * 100).round();
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(kRadiusCard),
-        border: Border.all(color: assigned ? acc.base : AppColors.divider),
+        gradient: LinearGradient(
+          colors: [
+            theme.colorScheme.primary.withValues(alpha: 0.15),
+            theme.colorScheme.secondary.withValues(alpha: 0.10),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.2),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                height: 24,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(color: chipBg, borderRadius: BorderRadius.circular(kRadiusChip)),
-                child: Text(tag, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: chipInk)),
+              Icon(
+                Icons.emoji_events_rounded,
+                color: theme.colorScheme.primary,
+                size: 28,
               ),
-              Text(meta, style: const TextStyle(fontSize: 13, color: AppColors.muted)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Skills Passport',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$percentage% complete',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: CatColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Circular progress
+              SizedBox(
+                width: 52,
+                height: 52,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    CircularProgressIndicator(
+                      value: progress,
+                      strokeWidth: 4,
+                      backgroundColor:
+                          theme.colorScheme.primary.withValues(alpha: 0.15),
+                      valueColor: AlwaysStoppedAnimation(
+                        theme.colorScheme.primary,
+                      ),
+                    ),
+                    Text(
+                      '$percentage%',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 12),
-          Text(lesson.title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w500, color: AppColors.ink)),
-          const SizedBox(height: 4),
-          Text(note, style: const TextStyle(fontSize: 14, height: 20 / 14, color: AppColors.muted)),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(color: AppColors.surface2, borderRadius: BorderRadius.circular(10)),
-            child: Row(children: [
-              Text(lesson.object, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.ink)),
-              const Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Icon(Icons.arrow_forward, size: 16, color: AppColors.muted)),
-              Text(lesson.control, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.ink)),
-            ]),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 52,
-            width: double.infinity,
-            child: assigned
-                ? FilledButton(
-                    onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => ArTrainingScreen(moduleId: moduleIdForLesson(lesson.id)))),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: acc.base,
-                      foregroundColor: AppColors.ink,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
-                      textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                    ),
-                    child: Text(cta),
-                  )
-                : OutlinedButton(
-                    onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => ArTrainingScreen(moduleId: moduleIdForLesson(lesson.id)))),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.ink,
-                      side: const BorderSide(color: AppColors.muted2),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
-                      textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                    ),
-                    child: Text(cta),
-                  ),
+          const SizedBox(height: 16),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 6,
+              backgroundColor:
+                  theme.colorScheme.primary.withValues(alpha: 0.12),
+              valueColor:
+                  AlwaysStoppedAnimation(theme.colorScheme.primary),
+            ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Module card
+// ---------------------------------------------------------------------------
+
+class _ModuleCard extends StatelessWidget {
+  const _ModuleCard({required this.module, required this.onTap});
+
+  final TrainingModule module;
+  final VoidCallback onTap;
+
+  IconData _iconForName(String name) => switch (name) {
+    'sports_esports' => Icons.sports_esports_rounded,
+    'speed' => Icons.speed_rounded,
+    'construction' => Icons.construction_rounded,
+    'build' => Icons.build_rounded,
+    'tune' => Icons.tune_rounded,
+    _ => Icons.school_rounded,
+  };
+
+  Color _difficultyColor(ModuleDifficulty d) => switch (d) {
+    ModuleDifficulty.beginner => CatColors.success,
+    ModuleDifficulty.intermediate => CatColors.warning,
+    ModuleDifficulty.advanced => CatColors.danger,
+  };
+
+  String _difficultyLabel(ModuleDifficulty d) => switch (d) {
+    ModuleDifficulty.beginner => 'Beginner',
+    ModuleDifficulty.intermediate => 'Intermediate',
+    ModuleDifficulty.advanced => 'Advanced',
+  };
+
+  String _statusLabel(ModuleStatus s) => switch (s) {
+    ModuleStatus.locked => 'Locked',
+    ModuleStatus.available => 'Start',
+    ModuleStatus.inProgress => 'Continue',
+    ModuleStatus.completed => 'Completed',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final diffColor = _difficultyColor(module.difficulty);
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: module.status == ModuleStatus.locked ? null : onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Top row: icon + title + difficulty badge
+              Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      _iconForName(module.iconName),
+                      color: theme.colorScheme.primary,
+                      size: 26,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          module.title,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (module.everydayObject != null)
+                          Text(
+                            '${module.everydayObject} → ${module.machineControl}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: CatColors.textSecondary,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  // Difficulty chip
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: diffColor.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _difficultyLabel(module.difficulty),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: diffColor,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 12),
+
+              // Description
+              Text(
+                module.description,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: CatColors.textSecondary,
+                  height: 1.4,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+
+              const SizedBox(height: 14),
+
+              // Progress bar + action button
+              Row(
+                children: [
+                  // Progress
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${module.completedSteps}/${module.steps.length} steps',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: CatColors.textMuted,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(3),
+                          child: LinearProgressIndicator(
+                            value: module.progressPercent,
+                            minHeight: 4,
+                            backgroundColor: theme.colorScheme.primary
+                                .withValues(alpha: 0.1),
+                            valueColor: AlwaysStoppedAnimation(
+                              module.status == ModuleStatus.completed
+                                  ? CatColors.success
+                                  : theme.colorScheme.primary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  // Action button
+                  FilledButton.tonal(
+                    onPressed:
+                        module.status == ModuleStatus.locked ? null : onTap,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: module.status == ModuleStatus.completed
+                          ? CatColors.success.withValues(alpha: 0.15)
+                          : theme.colorScheme.primary.withValues(alpha: 0.15),
+                      foregroundColor: module.status == ModuleStatus.completed
+                          ? CatColors.success
+                          : theme.colorScheme.primary,
+                    ),
+                    child: Text(_statusLabel(module.status)),
+                  ),
+                ],
+              ),
+
+              // Best score (if any)
+              if (module.bestScore > 0) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(Icons.star_rounded,
+                        size: 16, color: CatColors.warning),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Best: ${module.bestScore.round()}%',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: CatColors.warning,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
