@@ -88,3 +88,8 @@ def test_phone_machine_uses_service_hours_only(mode):
 def test_model_version_reports_source(mode):
     version = post("safety")["model_version"]
     assert version.startswith("rules-" if mode == "rules" else "safety-xgb-")
+
+
+def test_lowercase_seatbelt_status_is_understood(mode):
+    body = post("safety", seatbelt_status="unfastened", fatigue_score=0.9, hours_since_break=9)
+    assert "Seatbelt unfastened" in body["reasons"]

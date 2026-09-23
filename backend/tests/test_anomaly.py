@@ -87,3 +87,24 @@ def test_original_minimal_contract_still_accepted(mode):
 def test_model_version_reports_source(mode):
     version = post()["model_version"]
     assert version.startswith("rules-" if mode == "rules" else "anomaly-xgb-")
+
+
+def test_partial_normal_session_is_not_a_false_alarm(mode):
+    """The app often sends only some fields (old machines have no engine sensors)."""
+    res = client.post("/ml/anomaly", json={
+        "machine_id": "HT001", "vertical": "mining", "machine_type": "Haul Truck",
+        "session_duration_min": 300, "idling_time_min": 40, "load_cycles": 12,
+        "seatbelt_status": "Fastened",
+    })
+    assert res.json()["anomaly"] is False
+
+
+def test_category_values_are_case_insensitive(mode):
+    body = post(machine_type="excavator", vertical="CONSTRUCTION", speed_kmh=9)
+    assert body["anomaly_type"] == "UnsafeOperation"
+
+
+@pytest.mark.parametrize("bad", [{"idling_time_min": -5}, {"session_duration_min": 0},
+                                 {"fatigue_score": 1.5}, {"load_cycles": -1}])
+def test_impossible_values_are_rejected(bad):
+    assert client.post("/ml/anomaly", json={**NORMAL, **bad}).status_code == 422

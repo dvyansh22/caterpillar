@@ -66,7 +66,9 @@ def test_off_topic_question_is_not_answered():
     ("transcript", "intent"),
     [
         ("SOS I am injured", "sos"),
-        ("madad chahiye", "sos"),
+        ("bachao", "sos"),
+        ("operator down, call an ambulance", "sos"),
+        ("can you help me check the hydraulic oil level", "question"),
         ("log an incident please", "log_incident"),
         ("there was a near miss at the trench", "log_incident"),
         ("what's next", "next_task"),
@@ -79,6 +81,14 @@ def test_voice_intents(transcript, intent):
     res = client.post("/voice/nlu", json={"transcript": transcript})
     assert res.status_code == 200
     assert res.json()["intent"] == intent
+
+
+@pytest.mark.parametrize("transcript", [
+    "can you help me check the hydraulic oil level", "hydraulic mein madad chahiye",
+    "where is the emergency stop button", "help me find the next task",
+])
+def test_asking_for_help_is_not_a_false_sos(transcript):
+    assert client.post("/voice/nlu", json={"transcript": transcript}).json()["intent"] != "sos"
 
 
 def test_voice_question_is_answered_from_the_manual():
@@ -111,3 +121,13 @@ def test_gemini_failure_falls_back_to_quoting_the_manual(monkeypatch):
     monkeypatch.setattr(rag, "_generate", boom)
     data = client.post("/rag/query", json={"question": "do I need to wear the seatbelt while idling"}).json()
     assert data["answer"].startswith("From the manual")
+
+
+def test_empty_question_is_not_answered():
+    data = client.post("/rag/query", json={"question": "   "}).json()
+    assert data["sources"] == [] and "couldn't find" in data["answer"]
+
+
+def test_missing_manuals_folder_answers_not_found_instead_of_crashing(tmp_path):
+    retriever = rag.Retriever(rag.load_chunks(tmp_path))
+    assert retriever.search("engine overheating") == []

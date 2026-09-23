@@ -27,6 +27,7 @@ ML_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ML_DIR.parent / "backend"))
 from app.core.anomaly import build_features  # noqa: E402
 from app.core.risk import maintenance_reasons, safety_reasons  # noqa: E402
+from augment import with_missing_fields  # noqa: E402
 
 TARGETS = {
     "safety": ("SafetyAlertTriggered", lambda row: safety_reasons(row)[1] > 0.5),
@@ -36,37 +37,42 @@ TARGETS = {
 
 def train(df: pd.DataFrame, name: str, seed: int = 42) -> tuple[dict, dict]:
     target, rule = TARGETS[name]
-    X = build_features(df)
-    y = (df[target] == "Yes").astype(int)
+    label = lambda d: (d[target] == "Yes").astype(int)  # noqa: E731
+    fit_on = lambda d: _model(seed).fit(build_features(d), label(d))  # noqa: E731
 
     groups = df["MachineID"]
     split = GroupShuffleSplit(n_splits=1, test_size=0.25, random_state=seed)
-    train_idx, test_idx = next(split.split(X, y, groups=groups))
+    train_idx, test_idx = next(split.split(df, groups=groups))
+    train_df, test_df = df.iloc[train_idx], df.iloc[test_idx]
 
     # Pick the decision threshold on machines held out from training, never on the test set.
-    fit_rel, val_rel = next(split.split(X.iloc[train_idx], groups=groups.iloc[train_idx]))
-    fit_idx, val_idx = train_idx[fit_rel], train_idx[val_rel]
-    probe = _model(seed).fit(X.iloc[fit_idx], y.iloc[fit_idx])
-    val_proba = probe.predict_proba(X.iloc[val_idx])[:, 1]
-    threshold = max(np.arange(0.1, 0.9, 0.05), key=lambda t: f1_score(y.iloc[val_idx], val_proba > t))
+    fit_rel, val_rel = next(split.split(train_df, groups=groups.iloc[train_idx]))
+    val_df = with_missing_fields(train_df.iloc[val_rel], copies=1, seed=seed + 2)
+    probe = fit_on(with_missing_fields(train_df.iloc[fit_rel], seed=seed))
+    val_proba = probe.predict_proba(build_features(val_df))[:, 1]
+    threshold = max(np.arange(0.1, 0.9, 0.05), key=lambda t: f1_score(label(val_df), val_proba > t))
 
-    model = _model(seed).fit(X.iloc[train_idx], y.iloc[train_idx])
-    y_test = y.iloc[test_idx].to_numpy()
-    proba = model.predict_proba(X.iloc[test_idx])[:, 1]
-    test_rows = df.iloc[test_idx].replace({np.nan: None}).to_dict("records")
-    rule_pred = np.array([rule(r) for r in test_rows])
+    model = fit_on(with_missing_fields(train_df, seed=seed))
+    y_test = label(test_df).to_numpy()
+    proba = model.predict_proba(build_features(test_df))[:, 1]
+    rule_pred = np.array([rule(r) for r in test_df.replace({np.nan: None}).to_dict("records")])
+    partial = with_missing_fields(test_df, copies=1, seed=seed + 1).iloc[len(test_df):]
+    y_partial = label(partial).to_numpy()
+    flagged_partial = model.predict_proba(build_features(partial))[:, 1] > threshold
     metrics = {
         "roc_auc": roc_auc_score(y_test, proba),
         "pr_auc": average_precision_score(y_test, proba),
         "f1": f1_score(y_test, proba > threshold),
         "threshold": round(float(threshold), 2),
         "rule_baseline_f1": f1_score(y_test, rule_pred),
-        "positive_rate": float(y.mean()),
+        # Sessions with random optional fields missing, as the app may send them.
+        "partial_false_alarm_rate": float((flagged_partial & (y_partial == 0)).sum() / (y_partial == 0).sum()),
+        "positive_rate": float(label(df).mean()),
         "train_rows": len(train_idx), "test_rows": len(test_idx),
     }
     bundle = {
         "model": model,
-        "features": list(X.columns),
+        "features": list(build_features(test_df.head(1)).columns),
         "target": target,
         "threshold": metrics["threshold"],
         "version": f"{name}-xgb-{date.today():%Y%m%d}",
@@ -99,6 +105,7 @@ def main() -> None:
         joblib.dump(bundle, out)
         print(f"{name:<12} positives {m['positive_rate']:.1%} · ROC-AUC {m['roc_auc']:.3f} · "
               f"PR-AUC {m['pr_auc']:.3f} · F1 {m['f1']:.3f} @ {m['threshold']} (rules alone {m['rule_baseline_f1']:.3f}) "
+              f"· partial-session false alarms {m['partial_false_alarm_rate']:.1%} "
               f"-> {out.name}")
 
 

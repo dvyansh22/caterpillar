@@ -18,7 +18,10 @@ router = APIRouter(prefix="/voice", tags=["voice"])
 # Checked in order; first match wins. English plus common Hindi/Hinglish phrasings.
 # TODO(P2): replace with LLM intent classification for other Indian languages.
 COMMANDS: list[tuple[str, re.Pattern[str], str]] = [
-    ("sos", re.compile(r"\b(sos|emergency|help me|injured|bachao|madad)\b", re.I),
+    # Only unambiguous distress phrases: "help me check the oil" or "madad chahiye" must not raise an
+    # SOS. The long-press SOS button stays the primary trigger (FR-SOS-1).
+    ("sos", re.compile(r"\b(sos|mayday|bachao|ambulance|i(?:'m| am) (?:hurt|injured|trapped)"
+                       r"|(?:man|operator) down|call (?:an )?ambulance|medical emergency)\b", re.I),
      "Sending SOS now. Stay where you are if it is safe. Help is being alerted."),
     ("log_incident", re.compile(r"\b(log|report|record)\b.*\b(incident|near miss|issue|problem)\b"
                                 r"|\bnear miss\b", re.I),

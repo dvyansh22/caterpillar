@@ -87,6 +87,10 @@ class Retriever:
     def __init__(self, chunks: list[Chunk], mode: str | None = None) -> None:
         self.chunks = chunks
         self.mode = mode or os.environ.get("RAG_RETRIEVER", "embeddings")
+        if not chunks:  # e.g. a container built without ml/data/manuals — answer "not found"
+            log.error("no manual pages found in %s; set MANUALS_DIR", MANUALS_DIR)
+            self.mode = "empty"
+            return
         if self.mode == "embeddings":
             try:
                 self._init_embeddings()
@@ -129,6 +133,8 @@ class Retriever:
     def search(self, query: str | list[str], machine_type: str | None = None,
                fault_code: str | None = None, k: int = TOP_K) -> list[Hit]:
         """Score each section against every phrasing of the question and keep the best."""
+        if self.mode == "empty":
+            return []
         queries = [query] if isinstance(query, str) else query
         scores = np.max([self._scores(q) for q in queries], axis=0)
         for i, chunk in enumerate(self.chunks):
@@ -148,6 +154,8 @@ def get_retriever() -> Retriever:
 
 def answer(question: str, machine_type: str | None = None, fault_code: str | None = None,
            language: str = "en") -> Answer:
+    if not question.strip():
+        return Answer(NOT_FOUND, [], grounded=False)
     use_llm = bool(os.environ.get("GEMINI_API_KEY"))
     queries = [question]
     if use_llm:

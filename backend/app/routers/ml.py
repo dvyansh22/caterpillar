@@ -4,9 +4,9 @@ Stub responses establish the API contract (§20.2). Replace with real model infe
 """
 
 from fastapi import APIRouter
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
-from app.core.anomaly import score_session
+from app.core.anomaly import canonical, score_session
 from app.core.risk import score_maintenance, score_safety
 
 router = APIRouter(prefix="/ml", tags=["ml"])
@@ -45,26 +45,26 @@ class AnomalyRequest(BaseModel):
     """
 
     machine_id: str
-    idling_time_min: float
-    load_cycles: int
+    idling_time_min: float = Field(ge=0)
+    load_cycles: int = Field(ge=0)
     seatbelt_status: str
-    harsh_events: int = 0
-    speed_kmh: float | None = None  # max speed in the session
-    # optional expanded features (schema v1.0)
+    harsh_events: int = Field(0, ge=0)
+    speed_kmh: float | None = Field(None, ge=0)  # max speed in the session
+    # optional expanded features (schema v1.0); ranges reject impossible values with a 422
     vertical: str | None = None
     machine_type: str | None = None
     data_source: str | None = None
-    session_duration_min: float | None = None
-    avg_speed_kmh: float | None = None
-    fuel_used_l: float | None = None
+    session_duration_min: float | None = Field(None, gt=0)
+    avg_speed_kmh: float | None = Field(None, ge=0)
+    fuel_used_l: float | None = Field(None, ge=0)
     engine_temp_c: float | None = None
-    hydraulic_pressure_bar: float | None = None
-    rpm: float | None = None
-    payload_t: float | None = None
-    hours_since_service: float | None = None
-    proximity_warnings: int | None = None
-    hours_since_break: float | None = None
-    fatigue_score: float | None = None
+    hydraulic_pressure_bar: float | None = Field(None, ge=0)
+    rpm: float | None = Field(None, ge=0)
+    payload_t: float | None = Field(None, ge=0)
+    hours_since_service: float | None = Field(None, ge=0)
+    proximity_warnings: int | None = Field(None, ge=0)
+    hours_since_break: float | None = Field(None, ge=0)
+    fatigue_score: float | None = Field(None, ge=0, le=1)
     ambient_temp_c: float | None = None
     fault_code: str | None = None
 
@@ -73,12 +73,12 @@ class AnomalyRequest(BaseModel):
             "MachineID": self.machine_id,
             "IdlingTime_min": self.idling_time_min,
             "LoadCycles": self.load_cycles,
-            "SeatbeltStatus": self.seatbelt_status,
+            "SeatbeltStatus": canonical("SeatbeltStatus", self.seatbelt_status),
             "HarshEvents": self.harsh_events,
             "MaxSpeed_kmh": self.speed_kmh,
-            "Vertical": self.vertical,
-            "MachineType": self.machine_type,
-            "DataSource": self.data_source,
+            "Vertical": canonical("Vertical", self.vertical),
+            "MachineType": canonical("MachineType", self.machine_type),
+            "DataSource": canonical("DataSource", self.data_source),
             "SessionDuration_min": self.session_duration_min,
             "AvgSpeed_kmh": self.avg_speed_kmh,
             "FuelUsed_L": self.fuel_used_l,
@@ -91,7 +91,7 @@ class AnomalyRequest(BaseModel):
             "HoursSinceBreak": self.hours_since_break,
             "FatigueScore": self.fatigue_score,
             "AmbientTemp_C": self.ambient_temp_c,
-            "FaultCode": self.fault_code,
+            "FaultCode": canonical("FaultCode", self.fault_code),
         }
 
 

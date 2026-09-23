@@ -72,6 +72,14 @@ CATEGORICAL_COLUMNS = {
 }
 
 
+def canonical(column: str, value: Any) -> Any:
+    """Map a client value onto the schema spelling, ignoring case ("unfastened" -> "Unfastened")."""
+    if not isinstance(value, str):
+        return value
+    lookup = {v.lower(): v for v in CATEGORICAL_COLUMNS.get(column, [])}
+    return lookup.get(value.strip().lower(), value.strip())
+
+
 def norm_for(vertical: Any, machine_type: Any) -> MachineNorm | None:
     return NORMS.get((str(vertical), str(machine_type)))
 
