@@ -1,47 +1,35 @@
-// Smart Operator Assistant for CAT machinery — app entry point (scaffold stub).
+// Smart Operator Assistant for CAT machinery — app entry point.
 //
 // Owners: P4 (UI/backend) + P3 (AR bridge, ML wiring).
-// This is a placeholder to establish structure. Wire up Firebase, Riverpod, and GoRouter
-// in Phase 0/1 per docs/EXECUTION_PLAN.md.
+// Wired with Riverpod, GoRouter, and the CAT theme.
+// Firebase init is TODO(P4) — needs GoogleService-Info.plist.
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'core/config.dart';
+import 'core/providers.dart';
+import 'core/router.dart';
+import 'core/theme.dart';
 
 void main() {
-  // TODO(P4): WidgetsFlutterBinding.ensureInitialized(); await Firebase.initializeApp();
-  runApp(const SmartOperatorApp());
+  WidgetsFlutterBinding.ensureInitialized();
+  // TODO(P4): await Firebase.initializeApp();
+  runApp(const ProviderScope(child: SmartOperatorApp()));
 }
 
-class SmartOperatorApp extends StatelessWidget {
+class SmartOperatorApp extends ConsumerWidget {
   const SmartOperatorApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
+  Widget build(BuildContext context, WidgetRef ref) {
+    final vertical = ref.watch(verticalProvider);
+
+    return MaterialApp.router(
       title: 'Smart Operator Assistant',
-      theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.amber),
-      home: const _ScaffoldPlaceholder(),
-    );
-  }
-}
-
-// Placeholder landing with the planned bottom navbar: Task | Learning Hub | SOS | Profile.
-class _ScaffoldPlaceholder extends StatelessWidget {
-  const _ScaffoldPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Smart Operator Assistant')),
-      body: const Center(child: Text('Scaffold ready — build features/ next.')),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: 0,
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.assignment), label: 'Task'),
-          NavigationDestination(icon: Icon(Icons.school), label: 'Learning'),
-          NavigationDestination(icon: Icon(Icons.sos), label: 'SOS'),
-          NavigationDestination(icon: Icon(Icons.person), label: 'Profile'),
-        ],
-      ),
+      debugShowCheckedModeBanner: false,
+      theme: buildCatTheme(isMining: vertical == Vertical.mining),
+      routerConfig: routerProvider,
     );
   }
 }
