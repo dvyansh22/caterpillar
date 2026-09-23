@@ -37,8 +37,7 @@ class MlClient {
     } catch (_) {
       // Offline fallback — return a plausible stub.
       return const EstimateResponse(
-        predictedMinutes: 45.0,
-        confidence: 0.72,
+        estimatedMinutes: 45.0,
         baselineMinutes: 60.0,
       );
     }
