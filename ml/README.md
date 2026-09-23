@@ -51,3 +51,22 @@ python -m pytest ml/tests backend/tests
 - `generators/catalog.py` holds the domain constants (enums, machine specs, task standards, baseline formula).
 - `serving/task_time.py` is shared by training and `/ml/estimate`, so features are built identically.
 - The model predicts log(Actual / Estimated). Held-out-operator results are in `models/task_time_v1.metrics.json`.
+
+### P2 — anomaly, safety-alert and maintenance models (`/ml/anomaly`, `/ml/safety`, `/ml/maintenance`)
+Until P1's generator lands, `training/p2_dev_data.py` writes a stand-in Dataset A that follows the
+schema v1.0 rules. Features, thresholds and per-machine-type norms live in
+`backend/app/core/anomaly.py`, shared by training and serving. The per-type speed limits and fuel norms
+there are P2 assumptions, marked `TODO(P1)`.
+```
+python training/p2_dev_data.py --rows 20000                  # -> data/synthetic/telematics_p2dev.csv
+python training/anomaly.py --data data/synthetic/telematics_p2dev.csv   # -> models/anomaly.joblib
+python training/risk.py --data data/synthetic/telematics_p2dev.csv      # -> models/{safety,maintenance}.joblib
+python training/anomaly.py && python training/risk.py        # once P1's telematics.csv exists
+```
+The backend loads `ml/models/{anomaly,safety,maintenance}.joblib` (override with
+`ANOMALY_MODEL_PATH`, `SAFETY_MODEL_PATH`, `MAINTENANCE_MODEL_PATH`). If a file is missing, that
+endpoint falls back to the schema rules alone (`model_version: rules-1`). All three endpoints take
+the same session body. Fuel anomaly is the `FuelAnomaly` class of the anomaly model.
+
+### P2 — on-device models (seatbelt, fatigue, engine sound)
+Spec for the app, retraining steps and data needs: [`ondevice/README.md`](ondevice/README.md).

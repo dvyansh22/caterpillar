@@ -5,8 +5,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # backend/ -> `imp
 
 from fastapi.testclient import TestClient  # noqa: E402
 
+from app.core.ml_repo import ensure_ml_importable  # noqa: E402
 from app.main import app  # noqa: E402
-from ml.generators.schema import column_names  # noqa: E402  (importable once app.core.ml_repo ran)
+
+assert ensure_ml_importable(), "ml/ package not found next to backend/"
+from ml.generators.schema import column_names  # noqa: E402
 
 client = TestClient(app)
 

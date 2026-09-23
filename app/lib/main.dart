@@ -1,14 +1,24 @@
-// Smart Operator Assistant for CAT machinery — app entry point (scaffold stub).
-//
-// Owners: P4 (UI/backend) + P3 (AR bridge, ML wiring).
-// This is a placeholder to establish structure. Wire up Firebase, Riverpod, and GoRouter
-// in Phase 0/1 per docs/EXECUTION_PLAN.md.
-
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-void main() {
-  // TODO(P4): WidgetsFlutterBinding.ensureInitialized(); await Firebase.initializeApp();
-  runApp(const SmartOperatorApp());
+import 'core/config.dart';
+import 'core/nav.dart';
+import 'core/theme.dart';
+import 'core/tokens.dart';
+import 'features/auth/login_screen.dart';
+import 'features/safety_gate/safety_gate_screen.dart';
+import 'features/shell/main_shell.dart';
+import 'features/welcome/welcome_screen.dart';
+import 'firebase_options.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Only touches Firebase when explicitly enabled (see docs/FIREBASE_SETUP.md).
+  if (kUseFirebase) {
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  }
+  runApp(const ProviderScope(child: SmartOperatorApp()));
 }
 
 class SmartOperatorApp extends StatelessWidget {
@@ -17,31 +27,38 @@ class SmartOperatorApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Smart Operator Assistant',
-      theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.amber),
-      home: const _ScaffoldPlaceholder(),
+      title: 'Smart Operator',
+      debugShowCheckedModeBanner: false,
+      theme: buildAppTheme(),
+      home: const _Root(),
+      // The design targets a phone. Cap the width so it reads like a phone on wide
+      // screens (web); harmless on real devices (<= this width).
+      builder: (context, child) => ColoredBox(
+        color: AppColors.bg,
+        child: Center(
+          // width capped to phone size, height fills the window (keeps Scaffold bounded).
+          child: SizedBox(width: 430, height: double.infinity, child: child),
+        ),
+      ),
     );
   }
 }
 
-// Placeholder landing with the planned bottom navbar: Task | Learning Hub | SOS | Profile.
-class _ScaffoldPlaceholder extends StatelessWidget {
-  const _ScaffoldPlaceholder();
+class _Root extends ConsumerWidget {
+  const _Root();
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Smart Operator Assistant')),
-      body: const Center(child: Text('Scaffold ready — build features/ next.')),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: 0,
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.assignment), label: 'Task'),
-          NavigationDestination(icon: Icon(Icons.school), label: 'Learning'),
-          NavigationDestination(icon: Icon(Icons.sos), label: 'SOS'),
-          NavigationDestination(icon: Icon(Icons.person), label: 'Profile'),
-        ],
-      ),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final phase = ref.watch(navProvider.select((s) => s.phase));
+    final child = switch (phase) {
+      AppPhase.login => const LoginScreen(),
+      AppPhase.gate => const SafetyGateScreen(),
+      AppPhase.welcome => const WelcomeScreen(),
+      AppPhase.app => const MainShell(),
+    };
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 220),
+      child: KeyedSubtree(key: ValueKey(phase), child: child),
     );
   }
 }

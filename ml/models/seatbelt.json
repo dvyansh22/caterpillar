@@ -1,0 +1,30 @@
+{
+  "model": "seatbelt.tflite",
+  "version": "seatbelt-mnv3s-20260923",
+  "trained_on": "synthetic",
+  "input": {
+    "name": "image",
+    "shape": [
+      1,
+      224,
+      224,
+      3
+    ],
+    "dtype": "float32",
+    "range": "0-255 RGB, no normalisation",
+    "resize": "center-crop to square, resize 224"
+  },
+  "output": {
+    "name": "p_belt",
+    "shape": [
+      1,
+      1
+    ],
+    "dtype": "float32",
+    "meaning": "P(seatbelt on)"
+  },
+  "threshold": 0.5,
+  "val_accuracy": 1.0,
+  "val_auc": 1.0,
+  "size_kb": 1083
+}

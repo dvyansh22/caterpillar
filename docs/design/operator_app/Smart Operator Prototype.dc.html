@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body { margin: 0; background: #ecebe6; font-family: -apple-system, "SF Pro Text", system-ui, sans-serif; color: #1d1b16; -webkit-font-smoothing: antialiased; }
+* { box-sizing: border-box; }
+a { color: #6b4e00; }
+a:hover { color: #4a3600; }
+button { font-family: inherit; }
+button:focus-visible, input:focus-visible { outline: 2px solid #1d1b16; outline-offset: 2px; }
+button:disabled { opacity: .4; cursor: not-allowed; }
+@keyframes so-pulse { 0% { transform: scale(1); opacity: .5; } 100% { transform: scale(1.55); opacity: 0; } }
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 32px 16px; background: #ecebe6;">
+<x-import component="IOSDevice" from="./ios-frame.jsx" width="{{ 402 }}" height="{{ 874 }}" hint-size="402px,874px">
+<div style="height: 100%; display: flex; flex-direction: column; padding-top: 54px; background: #fbf8f2; color: #1d1b16; font-family: -apple-system, "SF Pro Text", system-ui, sans-serif; --acc: {{ acc.base }}; --acc-tint: {{ acc.tint }}; --acc-ink: {{ acc.ink }};">
+
+<sc-if value="{{ is.login }}" hint-placeholder-val="{{ true }}">
+<div data-screen-label="01 Login" style="flex: 1; display: flex; flex-direction: column; padding: 40px 24px 24px; gap: 28px;">
+  <div style="display: flex; flex-direction: column; gap: 12px;">
+    <div style="width: 48px; height: 48px; border-radius: 12px; background: var(--acc, #f2b21b); display: flex; align-items: center; justify-content: center;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#1d1b16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h20"></path><path d="M4 20v-5l4-5h5l2 5h4v5"></path><path d="m8 10 3-6 6 3"></path></svg></div>
+    <div style="font-size: 32px; line-height: 40px; font-weight: 400; letter-spacing: -0.2px;">Smart Operator</div>
+    <div style="font-size: 15px; line-height: 22px; color: #5f5b52;">Sign in to start your shift. Your role and site load from your account.</div>
+  </div>
+  <div style="display: flex; flex-direction: column; gap: 16px;">
+    <label style="display: flex; flex-direction: column; gap: 6px;">
+      <span style="font-size: 13px; font-weight: 500; color: #5f5b52;">Username</span>
+      <input style="height: 56px; padding: 0 16px; font: inherit; font-size: 17px; color: #1d1b16; background: #fff; border: 1px solid #c9c4b8; border-radius: 8px;" value="{{ username }}" onChange="{{ onUser }}" autocomplete="off">
+    </label>
+    <label style="display: flex; flex-direction: column; gap: 6px;">
+      <span style="font-size: 13px; font-weight: 500; color: #5f5b52;">Password</span>
+      <input type="password" style="height: 56px; padding: 0 16px; font: inherit; font-size: 17px; color: #1d1b16; background: #fff; border: 1px solid #c9c4b8; border-radius: 8px;" value="{{ password }}" onChange="{{ onPass }}">
+    </label>
+    <sc-if value="{{ loginError }}" hint-placeholder-val="{{ false }}">
+      <div style="font-size: 14px; color: #a1281c;">{{ loginError }}</div>
+    </sc-if>
+  </div>
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <div style="font-size: 13px; font-weight: 500; color: #5f5b52;">Demo accounts</div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+      <button style="min-height: 64px; padding: 10px 14px; border-radius: 12px; border: {{ demo.arjun }}; background: #fff; text-align: left; cursor: pointer; display: flex; flex-direction: column; gap: 2px;" onClick="{{ pickArjun }}"><span style="font-size: 16px; font-weight: 500; color: #1d1b16;">arjun</span><span style="font-size: 13px; color: #5f5b52;">Construction · EXC004</span></button>
+      <button style="min-height: 64px; padding: 10px 14px; border-radius: 12px; border: {{ demo.bala }}; background: #fff; text-align: left; cursor: pointer; display: flex; flex-direction: column; gap: 2px;" onClick="{{ pickBala }}"><span style="font-size: 16px; font-weight: 500; color: #1d1b16;">bala</span><span style="font-size: 13px; color: #5f5b52;">Mining · HT012</span></button>
+    </div>
+  </div>
+  <button style="margin-top: auto; height: 56px; border: 0; border-radius: 28px; background: var(--acc, #f2b21b); color: #1d1b16; font-size: 17px; font-weight: 500; cursor: pointer;" style-hover="filter: brightness(0.95);" onClick="{{ signIn }}">Sign in</button>
+</div>
+</sc-if>
+
+<sc-if value="{{ is.gate }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="02 Safety gate" style="flex: 1; display: flex; flex-direction: column; padding: 40px 24px 24px; gap: 24px;">
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <div style="font-size: 13px; font-weight: 500; letter-spacing: .6px; text-transform: uppercase; color: #5f5b52;">Pre-start safety gate</div>
+    <div style="font-size: 30px; line-height: 38px;">{{ gateTitle }}</div>
+    <div style="font-size: 15px; line-height: 22px; color: #5f5b52;">{{ gateSub }}</div>
+  </div>
+  <div style="display: flex; flex-direction: column; gap: 12px;">
+    <sc-for list="{{ gateRows }}" as="row" hint-placeholder-count="2">
+      <div style="display: grid; grid-template-columns: 44px 1fr; gap: 14px; align-items: start; padding: 16px; background: #fff; border-radius: 16px; border: 1px solid {{ row.border }};">
+        <div style="width: 44px; height: 44px; border-radius: 22px; background: {{ row.chipBg }}; color: {{ row.chipInk }}; display: flex; align-items: center; justify-content: center;">
+          <sc-if value="{{ row.pass }}" hint-placeholder-val="{{ false }}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></sc-if>
+          <sc-if value="{{ row.fail }}" hint-placeholder-val="{{ false }}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></sc-if>
+          <sc-if value="{{ row.busy }}" hint-placeholder-val="{{ true }}"><span style="font-size: 18px; letter-spacing: 1px;">···</span></sc-if>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px; padding-top: 2px;">
+          <div style="font-size: 17px; font-weight: 500;">{{ row.label }}</div>
+          <div style="font-size: 14px; line-height: 20px; color: #5f5b52; text-wrap: pretty;">{{ row.detail }}</div>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+  <sc-if value="{{ gateLocked }}" hint-placeholder-val="{{ false }}">
+    <div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px;">
+      <div style="display: flex; gap: 10px; align-items: center; padding: 12px 14px; border-radius: 12px; background: #fbe4e0; color: #7a1d14; font-size: 14px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect width="18" height="11" x="3" y="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>App locked until every check passes.</div>
+      <button style="height: 56px; border: 0; border-radius: 28px; background: var(--acc, #f2b21b); color: #1d1b16; font-size: 17px; font-weight: 500; cursor: pointer;" style-hover="filter: brightness(0.95);" onClick="{{ runGate }}">Re-run checks</button>
+      <button style="height: 48px; border: 0; border-radius: 24px; background: transparent; color: #5f5b52; font-size: 15px; font-weight: 500; cursor: pointer;" style-hover="background: rgba(29,27,22,0.06);" onClick="{{ signOut }}">Sign out</button>
+    </div>
+  </sc-if>
+</div>
+</sc-if>
+
+<sc-if value="{{ is.welcome }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="03 Welcome" style="flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 24px; gap: 16px;">
+  <div style="width: 56px; height: 56px; border-radius: 28px; background: var(--acc-tint, #fdefc8); color: var(--acc-ink, #5c4300); display: flex; align-items: center; justify-content: center;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></div>
+  <div style="font-size: 36px; line-height: 44px;">Good morning, {{ user.first }}</div>
+  <div style="font-size: 16px; line-height: 24px; color: #5f5b52; text-wrap: pretty;">Safety checks passed on {{ user.machineId }}. You have {{ taskCount }} tasks today at {{ user.siteShort }}.</div>
+  <button style="margin-top: 16px; height: 56px; border: 0; border-radius: 28px; background: var(--acc, #f2b21b); color: #1d1b16; font-size: 17px; font-weight: 500; cursor: pointer;" style-hover="filter: brightness(0.95);" onClick="{{ enterApp }}">Go to tasks</button>
+</div>
+</sc-if>
+
+<sc-if value="{{ is.app }}" hint-placeholder-val="{{ false }}">
+<div style="flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative;">
+  <div style="height: 56px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 16px; border-bottom: 1px solid rgba(29,27,22,0.10);">
+    <sc-if value="{{ view.sos }}" hint-placeholder-val="{{ false }}"><button style="width: 40px; height: 40px; margin-left: -8px; border: 0; border-radius: 20px; background: transparent; color: #1d1b16; display: flex; align-items: center; justify-content: center; cursor: pointer;" style-hover="background: rgba(29,27,22,0.06);" onClick="{{ closeSos }}" aria-label="Close SOS"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button></sc-if>
+    <div style="font-size: 20px; margin-right: auto; white-space: nowrap;">{{ appTitle }}</div>
+    <div style="display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid #c9c4b8; font-size: 13px; font-weight: 500; color: #3d3a33;"><span style="width: 8px; height: 8px; border-radius: 4px; background: var(--acc, #f2b21b);"></span>{{ user.verticalLabel }}</div>
+  </div>
+  <div style="flex: 1; min-height: 0; overflow-y: auto; padding-bottom: 88px;">
+
+  <sc-if value="{{ view.taskList }}" hint-placeholder-val="{{ true }}">
+  <div data-screen-label="04 Tasks" style="padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+    <div style="display: flex; flex-direction: column; gap: 4px; padding: 4px 4px 8px;">
+      <div style="font-size: 14px; color: #5f5b52;">Wednesday, 23 September</div>
+      <div style="font-size: 26px; line-height: 32px;">{{ taskSummary }}</div>
+      <div style="font-size: 13px; color: #5f5b52;">Times predicted by the task-time model for {{ user.first }} on {{ user.machineId }}</div>
+    </div>
+    <sc-for list="{{ tasks }}" as="t" hint-placeholder-count="5">
+      <button style="width: 100%; text-align: left; cursor: pointer; display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; padding: 16px; background: #fff; border-radius: 16px; border: 1px solid {{ t.border }}; color: #1d1b16; opacity: {{ t.opacity }};" style-hover="background: #fffdf8;" onClick="{{ t.open }}">
+        <div style="display: flex; flex-direction: column; gap: 6px; min-width: 0;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12px; color: #5f5b52;">{{ t.id }}</span>
+            <span style="height: 22px; padding: 0 8px; border-radius: 6px; white-space: nowrap; display: inline-flex; align-items: center; font-size: 12px; font-weight: 500; background: {{ t.chipBg }}; color: {{ t.chipInk }};">{{ t.status }}</span>
+          </div>
+          <div style="font-size: 18px; font-weight: 500; line-height: 24px;">{{ t.type }}</div>
+          <div style="display: flex; align-items: center; gap: 6px; font-size: 14px; color: #5f5b52; white-space: nowrap;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"></path><circle cx="12" cy="10" r="3"></circle></svg>{{ t.location }}</div>
+        </div>
+        <div style="min-width: 76px; padding: 10px 12px; border-radius: 12px; background: var(--acc-tint, #fdefc8); color: var(--acc-ink, #5c4300); display: flex; flex-direction: column; align-items: center; gap: 0;">
+          <div style="font-size: 28px; line-height: 32px; font-weight: 500; font-variant-numeric: tabular-nums;">{{ t.eta }}</div>
+          <div style="font-size: 12px; font-weight: 500; white-space: nowrap;">min</div>
+        </div>
+      </button>
+    </sc-for>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ view.taskDetail }}" hint-placeholder-val="{{ false }}">
+  <div data-screen-label="05 Task detail" style="padding: 8px 16px 16px; display: flex; flex-direction: column; gap: 16px;">
+    <button style="align-self: flex-start; height: 44px; padding: 0 12px 0 4px; white-space: nowrap; border: 0; border-radius: 22px; background: transparent; display: flex; align-items: center; gap: 4px; font-size: 15px; font-weight: 500; color: #3d3a33; cursor: pointer;" style-hover="background: rgba(29,27,22,0.06);" onClick="{{ backToList }}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m15 18-6-6 6-6"></path></svg>All tasks</button>
+    <div style="display: flex; flex-direction: column; gap: 4px; padding: 0 4px;">
+      <div style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 13px; color: #5f5b52;">{{ sel.id }}</div>
+      <div style="font-size: 30px; line-height: 38px;">{{ sel.type }}</div>
+      <div style="display: flex; align-items: center; gap: 6px; font-size: 15px; color: #5f5b52; white-space: nowrap;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"></path><circle cx="12" cy="10" r="3"></circle></svg>{{ sel.location }}</div>
+    </div>
+    <div style="padding: 20px; border-radius: 16px; background: var(--acc-tint, #fdefc8); color: var(--acc-ink, #5c4300); display: flex; flex-direction: column; gap: 4px;">
+      <div style="font-size: 13px; font-weight: 500;">Estimated time</div>
+      <div style="font-size: 52px; line-height: 60px; font-weight: 400; font-variant-numeric: tabular-nums;">{{ sel.eta }} min</div>
+      <div style="font-size: 14px; line-height: 20px;">{{ sel.delta }}</div>
+    </div>
+    <div style="display: flex; flex-direction: column; background: #fff; border-radius: 16px; border: 1px solid rgba(29,27,22,0.10);">
+      <div style="display: flex; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid rgba(29,27,22,0.08); font-size: 15px;"><span style="color: #5f5b52; white-space: nowrap;">Weather</span><span style="white-space: nowrap;">{{ sel.weather }}</span></div>
+      <div style="display: flex; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid rgba(29,27,22,0.08); font-size: 15px;"><span style="color: #5f5b52; white-space: nowrap;">Machine</span><span style="white-space: nowrap;">{{ user.machineId }} · {{ sel.age }} yrs</span></div>
+      <div style="display: flex; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid rgba(29,27,22,0.08); font-size: 15px;"><span style="color: #5f5b52; white-space: nowrap;">Operator skill</span><span style="white-space: nowrap;">{{ user.skill }}</span></div>
+      <div style="display: flex; justify-content: space-between; gap: 12px; padding: 14px 16px; font-size: 15px;"><span style="color: #5f5b52; white-space: nowrap;">Planner baseline</span><span style="font-variant-numeric: tabular-nums; white-space: nowrap;">{{ sel.est }} min</span></div>
+    </div>
+    <sc-if value="{{ sel.blocked }}" hint-placeholder-val="{{ false }}">
+      <div style="font-size: 14px; color: #5f5b52; padding: 0 4px;">Finish {{ activeId }} before starting another task.</div>
+    </sc-if>
+    <sc-if value="{{ sel.isDone }}" hint-placeholder-val="{{ false }}">
+      <div style="font-size: 14px; color: #5f5b52; padding: 0 4px;">Completed in {{ sel.doneMin }}.</div>
+    </sc-if>
+    <button style="height: 56px; border: 0; border-radius: 28px; background: var(--acc, #f2b21b); color: #1d1b16; font-size: 17px; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;" style-hover="filter: brightness(0.95);" disabled="{{ sel.cantStart }}" onClick="{{ startTask }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4v16l13-8z"></path></svg>Start task</button>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ view.taskActive }}" hint-placeholder-val="{{ false }}">
+  <div data-screen-label="06 Active task" style="padding: 8px 16px 16px; display: flex; flex-direction: column; gap: 16px;">
+    <button style="align-self: flex-start; height: 44px; padding: 0 12px 0 4px; white-space: nowrap; border: 0; border-radius: 22px; background: transparent; display: flex; align-items: center; gap: 4px; font-size: 15px; font-weight: 500; color: #3d3a33; cursor: pointer;" style-hover="background: rgba(29,27,22,0.06);" onClick="{{ backToList }}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m15 18-6-6 6-6"></path></svg>All tasks</button>
+    <div style="padding: 20px; border-radius: 16px; background: #1d1b16; color: #fbf8f2; display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500;"><span style="width: 8px; height: 8px; border-radius: 4px; background: var(--acc, #f2b21b);"></span>In progress · {{ act.id }}</div>
+      <div style="font-size: 22px; line-height: 28px;">{{ act.type }}</div>
+      <div style="display: flex; align-items: baseline; justify-content: space-between;">
+        <div style="font-size: 60px; line-height: 64px; font-weight: 300; font-variant-numeric: tabular-nums;">{{ elapsed }}</div>
+        <div style="font-size: 14px; color: #c9c4b8; white-space: nowrap;">of ~{{ act.eta }} min</div>
+      </div>
+      <div style="height: 6px; border-radius: 3px; background: rgba(251,248,242,0.18); overflow: hidden;"><div style="height: 100%; width: {{ progressPct }}; background: var(--acc, #f2b21b); border-radius: 3px;"></div></div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 16px; padding: 16px; background: #fff; border-radius: 16px; border: 1px solid rgba(29,27,22,0.10);">
+      <div style="position: relative; width: 72px; height: 72px; flex: none;">
+        <sc-if value="{{ recording }}" hint-placeholder-val="{{ false }}"><div style="position: absolute; inset: 0; border-radius: 36px; background: var(--acc, #f2b21b); animation: so-pulse 1.2s ease-out infinite;"></div></sc-if>
+        <button style="position: absolute; inset: 0; border-radius: 36px; border: 0; background: {{ micBg }}; color: {{ micInk }}; display: flex; align-items: center; justify-content: center; cursor: pointer;" onClick="{{ toggleVoice }}"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><path d="M12 19v3"></path></svg></button>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+        <div style="font-size: 18px; font-weight: 500;">{{ voiceLabel }}</div>
+        <div style="font-size: 14px; line-height: 20px; color: #5f5b52;">{{ voiceSub }}</div>
+      </div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <div style="font-size: 14px; font-weight: 500; color: #5f5b52; padding: 0 4px;">Observations · {{ logCount }}</div>
+      <sc-if value="{{ noLogs }}" hint-placeholder-val="{{ true }}">
+        <div style="font-size: 14px; color: #7a766c; padding: 12px 4px;">Nothing logged yet on this task.</div>
+      </sc-if>
+      <sc-for list="{{ logs }}" as="l" hint-placeholder-count="0">
+        <div style="display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; background: #fff; border-radius: 12px; border: 1px solid rgba(29,27,22,0.10);">
+          <div style="font-size: 15px; line-height: 22px; text-wrap: pretty;">{{ l.text }}</div>
+          <div style="display: flex; gap: 8px; font-size: 12px; color: #5f5b52;"><span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace;">{{ l.time }}</span><span>·</span><span>{{ l.sync }}</span></div>
+        </div>
+      </sc-for>
+    </div>
+    <button style="height: 56px; border: 1px solid #7a766c; border-radius: 28px; background: transparent; color: #1d1b16; font-size: 17px; font-weight: 500; cursor: pointer;" style-hover="background: rgba(29,27,22,0.05);" onClick="{{ endTask }}">End task</button>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ view.learnList }}" hint-placeholder-val="{{ false }}">
+  <div data-screen-label="07 Learning Hub" style="padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+    <div style="font-size: 15px; line-height: 22px; color: #5f5b52; padding: 4px 4px 8px; text-wrap: pretty;">Practice machine controls in AR using objects you have on hand.</div>
+    <sc-for list="{{ lessons }}" as="m" hint-placeholder-count="2">
+      <div style="display: flex; flex-direction: column; gap: 12px; padding: 16px; background: #fff; border-radius: 16px; border: 1px solid {{ m.border }};">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="height: 24px; padding: 0 10px; border-radius: 6px; white-space: nowrap; display: inline-flex; align-items: center; font-size: 12px; font-weight: 500; background: {{ m.chipBg }}; color: {{ m.chipInk }};">{{ m.tag }}</span>
+          <span style="margin-left: auto; font-size: 13px; color: #5f5b52; white-space: nowrap;">{{ m.meta }}</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <div style="font-size: 20px; font-weight: 500;">{{ m.title }}</div>
+          <div style="font-size: 14px; line-height: 20px; color: #5f5b52; text-wrap: pretty;">{{ m.note }}</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; background: #f3efe6; font-size: 14px;"><span style="font-weight: 500; white-space: nowrap;">{{ m.object }}</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg><span style="white-space: nowrap;">{{ m.control }}</span></div>
+        <button style="height: 48px; border: {{ m.btnBorder }}; border-radius: 24px; background: {{ m.btnBg }}; color: #1d1b16; font-size: 16px; font-weight: 500; cursor: pointer;" style-hover="filter: brightness(0.96);" onClick="{{ m.start }}">{{ m.cta }}</button>
+      </div>
+    </sc-for>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ view.lesson }}" hint-placeholder-val="{{ false }}">
+  <div data-screen-label="08 AR lesson" style="padding: 8px 16px 16px; display: flex; flex-direction: column; gap: 16px;">
+    <button style="align-self: flex-start; height: 44px; padding: 0 12px 0 4px; white-space: nowrap; border: 0; border-radius: 22px; background: transparent; display: flex; align-items: center; gap: 4px; font-size: 15px; font-weight: 500; color: #3d3a33; cursor: pointer;" style-hover="background: rgba(29,27,22,0.06);" onClick="{{ closeLesson }}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m15 18-6-6 6-6"></path></svg>Learning Hub</button>
+    <div style="position: relative; height: 320px; border-radius: 16px; overflow: hidden; background: repeating-linear-gradient(135deg, #2a2822 0 12px, #24221d 12px 24px); display: flex; align-items: center; justify-content: center;">
+      <div style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12px; color: #a9a497;">camera feed · AR overlay</div>
+      <div style="position: absolute; left: 12px; top: 12px; height: 32px; padding: 0 12px; border-radius: 8px; background: var(--acc, #f2b21b); color: #1d1b16; display: flex; align-items: center; font-size: 14px; font-weight: 500;">{{ les.object }} = {{ les.control }}</div>
+      <div style="position: absolute; right: 12px; bottom: 12px; height: 28px; padding: 0 10px; border-radius: 8px; background: rgba(0,0,0,0.5); color: #fbf8f2; display: flex; align-items: center; font-size: 13px; font-variant-numeric: tabular-nums;">{{ les.counter }}</div>
+    </div>
+    <sc-if value="{{ les.running }}" hint-placeholder-val="{{ true }}">
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="display: flex; gap: 4px;">
+          <sc-for list="{{ les.dots }}" as="d" hint-placeholder-count="4"><div style="flex: 1; height: 4px; border-radius: 2px; background: {{ d.bg }};"></div></sc-for>
+        </div>
+        <div style="font-size: 14px; font-weight: 500; color: #5f5b52;">{{ les.title }}</div>
+        <div style="font-size: 24px; line-height: 32px; text-wrap: pretty;">{{ les.prompt }}</div>
+        <button style="margin-top: 8px; height: 56px; border: 0; border-radius: 28px; background: var(--acc, #f2b21b); color: #1d1b16; font-size: 17px; font-weight: 500; cursor: pointer;" style-hover="filter: brightness(0.95);" onClick="{{ nextStep }}">Step done</button>
+      </div>
+    </sc-if>
+    <sc-if value="{{ les.done }}" hint-placeholder-val="{{ false }}">
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="font-size: 14px; font-weight: 500; color: #5f5b52;">{{ les.title }} complete</div>
+        <div style="font-size: 56px; line-height: 64px; font-variant-numeric: tabular-nums;">{{ les.score }}<span style="font-size: 22px; color: #5f5b52;"> / 100</span></div>
+        <div style="font-size: 15px; color: #5f5b52;">Saved to your skills passport.</div>
+        <button style="margin-top: 8px; height: 56px; border: 0; border-radius: 28px; background: var(--acc, #f2b21b); color: #1d1b16; font-size: 17px; font-weight: 500; cursor: pointer;" style-hover="filter: brightness(0.95);" onClick="{{ closeLesson }}">Done</button>
+      </div>
+    </sc-if>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ view.sos }}" hint-placeholder-val="{{ false }}">
+  <div data-screen-label="09 SOS" style="padding: 16px; display: flex; flex-direction: column; gap: 16px; min-height: 100%;">
+    <sc-if value="{{ sosIdle }}" hint-placeholder-val="{{ true }}">
+      <div style="font-size: 15px; line-height: 22px; color: #5f5b52; padding: 4px; text-wrap: pretty;">Sends your location over Bluetooth to nearby phones, which pass it on. Works with no cell signal.</div>
+      <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; padding: 24px 0;">
+        <div style="position: relative; width: 240px; height: 240px;">
+          <svg width="240" height="240" viewBox="0 0 240 240" style="position: absolute; inset: 0; transform: rotate(-90deg);"><circle cx="120" cy="120" r="114" fill="none" stroke="#f1d9d4" stroke-width="8"></circle><circle cx="120" cy="120" r="114" fill="none" stroke="#b3261e" stroke-width="8" stroke-linecap="round" stroke-dasharray="716.3" stroke-dashoffset="{{ sosOffset }}"></circle></svg>
+          <button style="position: absolute; inset: 20px; border-radius: 50%; border: 0; background: #b3261e; color: #fff; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; touch-action: none; user-select: none; box-shadow: 0 6px 20px rgba(179,38,30,0.35);" style-active="background: #8c1d18;" onPointerDown="{{ sosDown }}" onPointerUp="{{ sosUp }}" onPointerLeave="{{ sosUp }}">
+            <span style="font-size: 52px; font-weight: 700; letter-spacing: 2px; line-height: 1;">SOS</span>
+            <span style="font-size: 14px; font-weight: 500;">{{ sosHint }}</span>
+          </button>
+        </div>
+        <div style="font-size: 15px; color: #5f5b52;">Press and hold for 2 seconds</div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ sosLive }}" hint-placeholder-val="{{ false }}">
+      <div style="padding: 20px; border-radius: 16px; background: #b3261e; color: #fff; display: flex; flex-direction: column; gap: 6px;">
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500;"><span style="width: 8px; height: 8px; border-radius: 4px; background: #fff;"></span>SOS active · {{ sosClock }}</div>
+        <div style="font-size: 26px; line-height: 32px;">Help is being alerted</div>
+        <div style="font-size: 14px; line-height: 20px; color: #ffdad5;">Stay where you are if it is safe.</div>
+      </div>
+      <div style="display: flex; flex-direction: column; background: #fff; border-radius: 16px; border: 1px solid rgba(29,27,22,0.10); padding: 4px 16px;">
+        <sc-for list="{{ sosSteps }}" as="s" hint-placeholder-count="4">
+          <div style="display: grid; grid-template-columns: 28px 1fr; gap: 12px; padding: 12px 0; border-bottom: 1px solid {{ s.line }}; opacity: {{ s.opacity }};">
+            <div style="width: 28px; height: 28px; border-radius: 14px; background: {{ s.chipBg }}; color: #fff; display: flex; align-items: center; justify-content: center;"><sc-if value="{{ s.done }}" hint-placeholder-val="{{ false }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></sc-if></div>
+            <div style="display: flex; flex-direction: column; gap: 2px;"><div style="font-size: 15px; font-weight: 500;">{{ s.label }}</div><div style="font-size: 13px; line-height: 18px; color: #5f5b52;">{{ s.detail }}</div></div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; border-radius: 12px; background: #f3efe6; font-size: 13px;">
+        <div style="font-weight: 500; color: #5f5b52;">Broadcast packet</div>
+        <div style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12px; line-height: 18px; color: #3d3a33;">{{ user.opId }} · {{ user.machineId }} · {{ user.gps }} · severity high · {{ sosAttached }}</div>
+      </div>
+      <button style="height: 56px; border: 1px solid #7a766c; border-radius: 28px; background: transparent; color: #1d1b16; font-size: 17px; font-weight: 500; cursor: pointer;" style-hover="background: rgba(29,27,22,0.05);" onClick="{{ cancelSos }}">Cancel SOS</button>
+    </sc-if>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ view.profile }}" hint-placeholder-val="{{ false }}">
+  <div data-screen-label="10 Profile" style="padding: 16px; display: flex; flex-direction: column; gap: 16px;">
+    <div style="display: flex; align-items: center; gap: 16px; padding: 8px 4px;">
+      <div style="width: 64px; height: 64px; border-radius: 32px; background: var(--acc-tint, #fdefc8); color: var(--acc-ink, #5c4300); display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 500;">{{ user.initial }}</div>
+      <div style="display: flex; flex-direction: column; gap: 2px;">
+        <div style="font-size: 24px; line-height: 30px; white-space: nowrap;">{{ user.name }}</div>
+        <div style="font-size: 14px; color: #5f5b52;"><span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace;">{{ user.opId }}</span> · Operator</div>
+      </div>
+    </div>
+    <div style="display: flex; flex-direction: column; background: #fff; border-radius: 16px; border: 1px solid rgba(29,27,22,0.10);">
+      <div style="display: flex; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid rgba(29,27,22,0.08); font-size: 15px;"><span style="color: #5f5b52; white-space: nowrap;">Machine</span><span style="text-align: right; white-space: nowrap;">{{ user.machine }}</span></div>
+      <div style="display: flex; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid rgba(29,27,22,0.08); font-size: 15px;"><span style="color: #5f5b52; white-space: nowrap;">Data source</span><span style="text-align: right; white-space: nowrap;">{{ user.source }}</span></div>
+      <div style="display: flex; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid rgba(29,27,22,0.08); font-size: 15px;"><span style="color: #5f5b52; white-space: nowrap;">Site</span><span style="text-align: right; white-space: nowrap;">{{ user.site }}</span></div>
+      <div style="display: flex; justify-content: space-between; gap: 12px; padding: 14px 16px; font-size: 15px;"><span style="color: #5f5b52; white-space: nowrap;">Skill level</span><span style="white-space: nowrap;">{{ user.skill }}</span></div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <div style="font-size: 14px; font-weight: 500; color: #5f5b52; padding: 0 4px;">Skills passport</div>
+      <div style="display: flex; flex-direction: column; background: #fff; border-radius: 16px; border: 1px solid rgba(29,27,22,0.10);">
+        <sc-for list="{{ passport }}" as="p" hint-placeholder-count="3">
+          <div style="display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid {{ p.line }};">
+            <div style="display: flex; flex-direction: column; gap: 2px; margin-right: auto;"><div style="font-size: 15px; white-space: nowrap;">{{ p.title }}</div><div style="font-size: 13px; color: #5f5b52;">{{ p.date }}</div></div>
+            <div style="font-size: 20px; font-weight: 500; font-variant-numeric: tabular-nums;">{{ p.score }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+    <button style="height: 52px; border: 1px solid #7a766c; border-radius: 26px; background: transparent; color: #1d1b16; font-size: 16px; font-weight: 500; cursor: pointer;" style-hover="background: rgba(29,27,22,0.05);" onClick="{{ signOut }}">Sign out</button>
+  </div>
+  </sc-if>
+
+  </div>
+  <sc-if value="{{ showFab }}" hint-placeholder-val="{{ true }}">
+  <div style="position: absolute; right: 16px; bottom: 100px; z-index: 5; width: 68px; height: 68px;">
+    <sc-if value="{{ sosLive }}" hint-placeholder-val="{{ false }}"><div style="position: absolute; inset: 0; border-radius: 34px; background: #b3261e; animation: so-pulse 1.4s ease-out infinite;"></div></sc-if>
+    <button style="position: absolute; inset: 0; border-radius: 34px; border: 3px solid #fbf8f2; background: #b3261e; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; cursor: pointer; box-shadow: 0 6px 18px rgba(179,38,30,0.40), 0 2px 4px rgba(0,0,0,0.12);" style-hover="background: #9c2019;" style-active="background: #8c1d18;" onClick="{{ goSos }}" aria-label="Open SOS">
+      <span style="font-size: 17px; font-weight: 700; letter-spacing: 1px; line-height: 1;">SOS</span>
+      <sc-if value="{{ sosLive }}" hint-placeholder-val="{{ false }}"><span style="font-size: 10px; font-weight: 600; margin-top: 2px;">ACTIVE</span></sc-if>
+    </button>
+  </div>
+  </sc-if>
+  <div style="flex: none; display: grid; grid-template-columns: repeat(3, 1fr); padding: 8px 0 30px; background: #f3efe6; border-top: 1px solid rgba(29,27,22,0.08);">
+    <button style="border: 0; background: transparent; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; color: #1d1b16;" onClick="{{ goTask }}"><span style="width: 64px; height: 32px; border-radius: 16px; background: {{ nav.task.pill }}; display: flex; align-items: center; justify-content: center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11h4"></path><path d="M12 16h4"></path><path d="M8 11h.01"></path><path d="M8 16h.01"></path></svg></span><span style="font-size: 12px; white-space: nowrap; font-weight: {{ nav.task.weight }};">Task</span></button>
+    <button style="border: 0; background: transparent; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; color: #1d1b16;" onClick="{{ goLearn }}"><span style="width: 64px; height: 32px; border-radius: 16px; background: {{ nav.learn.pill }}; display: flex; align-items: center; justify-content: center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"></path><path d="M22 10v6"></path><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"></path></svg></span><span style="font-size: 12px; white-space: nowrap; font-weight: {{ nav.learn.weight }};">Learning Hub</span></button>
+    <button style="border: 0; background: transparent; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; color: #1d1b16;" onClick="{{ goProfile }}"><span style="width: 64px; height: 32px; border-radius: 16px; background: {{ nav.profile.pill }}; display: flex; align-items: center; justify-content: center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></span><span style="font-size: 12px; white-space: nowrap; font-weight: {{ nav.profile.weight }};">Profile</span></button>
+  </div>
+</div>
+</sc-if>
+
+</div>
+</x-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;forceSeatbeltFail&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: false, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Demo controls&quot;}, &quot;forceCameraFail&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: false, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Demo controls&quot;}, &quot;skipLogin&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: false, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Demo controls&quot;}}">
+const USERS = {
+  arjun: { name: 'Arjun Kumar', first: 'Arjun', initial: 'A', opId: 'OP1001', vertical: 'construction', verticalLabel: 'Construction', machineId: 'EXC004', machine: 'Cat 320 Excavator · EXC004', site: 'SITE01 · Metro depot', siteShort: 'the metro depot', source: 'Phone sensors (no telematics)', skill: 'Intermediate', gps: '12.9698, 77.7500', session: 'S000214', supervisor: 'site manager',
+    passport: [{ title: 'Pre-start walkaround', date: '12 Sep', score: 88 }, { title: 'Swing radius awareness', date: '4 Sep', score: 81 }],
+    flag: 'Auto-assigned after a harsh-throttle flag on EXC004, 22 Sep.',
+    voice: ['Ground crew walking behind the swing radius near the utility corridor.', 'Soft soil at the trench edge. Possible cave-in risk.', 'Hydraulic whine when lifting a full bucket.'] },
+  bala: { name: 'Bala Murugan', first: 'Bala', initial: 'B', opId: 'OP2007', vertical: 'mining', verticalLabel: 'Mining', machineId: 'HT012', machine: 'Cat 777 Haul Truck · HT012', site: 'SITE03 · North pit', siteShort: 'the north pit', source: 'Product Link telematics', skill: 'Expert', gps: '11.5362, 79.4853', session: 'S001873', supervisor: 'dispatcher',
+    passport: [{ title: 'Haul-road procedures', date: '15 Sep', score: 93 }, { title: 'Fatigue management', date: '2 Sep', score: 90 }],
+    flag: 'Auto-assigned after a harsh loaded-turn flag on HT012, 22 Sep.',
+    voice: ['Rough patch on ramp R2 near km 1.4.', 'Light vehicle parked in my blind spot at the crusher.', 'Brakes feel soft on the loaded descent.'] },
+};
+const TASKS = {
+  construction: [
+    { id: 'T001', type: 'Earth Excavation', location: 'Zone A · North cut', weather: 'Sunny', age: 2, est: 60, eta: 57 },
+    { id: 'T002', type: 'Trenching', location: 'Zone C · Utility corridor', weather: 'Rainy', age: 4, est: 45, eta: 51 },
+    { id: 'T003', type: 'Material Loading', location: 'Stockpile 2', weather: 'Cloudy', age: 3, est: 30, eta: 41 },
+    { id: 'T004', type: 'Grading', location: 'Zone B · Pad 4', weather: 'Sunny', age: 5, est: 35, eta: 33 },
+    { id: 'T005', type: 'Demolition', location: 'Block D · East wall', weather: 'Windy', age: 6, est: 90, eta: 104 },
+  ],
+  mining: [
+    { id: 'M001', type: 'Overburden Removal', location: 'Pit 3 · Bench 410', weather: 'Dusty', age: 7, est: 120, eta: 127 },
+    { id: 'M002', type: 'Ore Loading', location: 'Shovel SH02 · Face 7', weather: 'Sunny', age: 7, est: 60, eta: 56 },
+    { id: 'M003', type: 'Load-Haul-Dump', location: 'Haul road R2 to crusher', weather: 'Sunny', age: 7, est: 45, eta: 43 },
+    { id: 'M004', type: 'Haul Road Maintenance', location: 'Ramp R2 · km 1.4', weather: 'Windy', age: 7, est: 50, eta: 53 },
+    { id: 'M005', type: 'Bench Drilling', location: 'Bench 395 · Pattern 12', weather: 'Dusty', age: 7, est: 75, eta: 79 },
+  ],
+};
+const LESSONS = [
+  { id: 'throttle', title: 'Throttle control', object: 'Water bottle', control: 'Throttle', auto: true,
+    steps: ['Hold the bottle upright where the camera can see it.', 'Tilt it forward slowly to raise the throttle.', 'Bring it back upright to return to idle.', 'Tilt forward, then ease back without a jerk.'] },
+  { id: 'steering', title: 'Steering basics', object: 'Computer mouse', control: 'Steering', auto: false,
+    steps: ['Place the mouse flat where the camera can see it.', 'Turn it left to steer left.', 'Turn it right to steer right.', 'Center it and hold for two seconds.'] },
+];
+const ACC = {
+  construction: { base: '#f2b21b', tint: '#fdefc8', ink: '#5c4300' },
+  mining: { base: '#ef8a3c', tint: '#fde3cf', ink: '#6b2f00' },
+};
+const pad = n => String(n).padStart(2, '0');
+const mmss = s => pad(Math.floor(s / 60)) + ':' + pad(s % 60);
+
+class Component extends DCLogic {
+  state = { screen: (this.props && this.props.skipLogin) ? 'app' : 'login', username: 'arjun', password: 'demo1234', loginError: '', gate: { seat: 'pending', cam: 'pending' }, tab: 'task', taskView: 'list', selId: null, active: null, done: {}, logs: {}, recording: false, lesson: null, completed: {}, hold: 0, sosAt: null, now: Date.now() };
+  timers = [];
+  componentDidMount() {
+    if (this.props.skipLogin) this.setState({ screen: 'app' });
+  }
+  componentWillUnmount() { clearInterval(this.tick); clearInterval(this.holdTimer); this.timers.forEach(clearTimeout); }
+  later(fn, ms) { this.timers.push(setTimeout(fn, ms)); }
+  user() { return USERS[this.state.username.trim().toLowerCase()] || USERS.arjun; }
+  runGate = () => {
+    this.timers.forEach(clearTimeout); this.timers = [];
+    const seatFail = !!this.props.forceSeatbeltFail, camFail = !!this.props.forceCameraFail;
+    this.setState({ screen: 'gate', gate: { seat: 'busy', cam: 'pending' } });
+    this.later(() => this.setState({ gate: { seat: seatFail ? 'fail' : 'pass', cam: 'busy' } }), 1200);
+    this.later(() => this.setState({ gate: { seat: seatFail ? 'fail' : 'pass', cam: camFail ? 'fail' : 'pass' } }), 2400);
+    if (!seatFail && !camFail) {
+      this.later(() => this.setState({ screen: 'welcome' }), 3200);
+      this.later(() => { if (this.state.screen === 'welcome') this.setState({ screen: 'app' }); }, 6200);
+    }
+  };
+  signIn = () => {
+    const u = this.state.username.trim().toLowerCase();
+    if (!USERS[u]) return this.setState({ loginError: 'Unknown username. Use arjun or bala.' });
+    if (!this.state.password) return this.setState({ loginError: 'Enter your password.' });
+    this.setState({ loginError: '', username: u });
+    this.runGate();
+  };
+  signOut = () => { this.timers.forEach(clearTimeout); this.setState({ screen: 'login', tab: 'task', taskView: 'list', selId: null, active: null, done: {}, logs: {}, lesson: null, sosAt: null, hold: 0, recording: false }); };
+  sosDown = () => {
+    const start = Date.now(); clearInterval(this.holdTimer);
+    this.holdTimer = setInterval(() => {
+      const h = Math.min(1, (Date.now() - start) / 2000);
+      if (h >= 1) { clearInterval(this.holdTimer); this.setState({ hold: 0, sosAt: Date.now(), now: Date.now() }); }
+      else this.setState({ hold: h });
+    }, 30);
+  };
+  sosUp = () => { clearInterval(this.holdTimer); if (this.state.hold) this.setState({ hold: 0 }); };
+  toggleVoice = () => {
+    if (this.state.recording) return;
+    this.setState({ recording: true });
+    this.later(() => {
+      const s = this.state, u = this.user(), id = s.active && s.active.id;
+      if (!id) return this.setState({ recording: false });
+      const list = s.logs[id] || [];
+      const sec = Math.floor((Date.now() - s.active.start) / 1000);
+      const entry = { text: u.voice[list.length % u.voice.length], time: mmss(sec), sync: u.vertical === 'mining' ? 'Queued, no signal' : 'Synced' };
+      this.setState({ recording: false, logs: { ...s.logs, [id]: [entry, ...list] } });
+    }, 2600);
+  };
+  ensureTick() {
+    const need = !!(this.state.active || this.state.sosAt);
+    if (need && !this.tick) this.tick = setInterval(() => {
+      if (this.state.active || this.state.sosAt) this.setState({ now: Date.now() });
+      else { clearInterval(this.tick); this.tick = null; }
+    }, 500);
+  }
+  renderVals() {
+    this.ensureTick();
+    const s = this.state, u = this.user(), acc = ACC[u.vertical];
+    const tasks = TASKS[u.vertical];
+    const activeId = s.active && s.active.id;
+    const sel = tasks.find(t => t.id === s.selId) || tasks[0];
+    const act = tasks.find(t => t.id === activeId) || tasks[0];
+    const inApp = s.screen === 'app';
+    const lessonDef = LESSONS.find(l => l.id === (s.lesson && s.lesson.id)) || LESSONS[0];
+    const view = {
+      taskList: s.tab === 'task' && s.taskView === 'list',
+      taskDetail: s.tab === 'task' && s.taskView === 'detail',
+      taskActive: s.tab === 'task' && s.taskView === 'active' && !!s.active,
+      learnList: s.tab === 'learn' && !s.lesson,
+      lesson: s.tab === 'learn' && !!s.lesson,
+      sos: s.tab === 'sos', profile: s.tab === 'profile',
+    };
+    const totalEta = tasks.reduce((a, t) => a + t.eta, 0);
+    const navItem = k => ({ pill: s.tab === k ? acc.tint : 'transparent', weight: s.tab === k ? 700 : 500 });
+    const gateRow = (st, label, d) => ({ label, pass: st === 'pass', fail: st === 'fail', busy: st === 'busy' || st === 'pending',
+      border: st === 'fail' ? '#e7a79f' : 'rgba(29,27,22,0.10)',
+      chipBg: st === 'pass' ? '#d7ecd6' : st === 'fail' ? '#fbe4e0' : '#f3efe6',
+      chipInk: st === 'pass' ? '#1e5b24' : st === 'fail' ? '#a1281c' : '#7a766c', detail: d[st] });
+    const g = s.gate;
+    const gateLocked = g.seat === 'fail' || g.cam === 'fail';
+    const gatePassed = g.seat === 'pass' && g.cam === 'pass';
+    const elapsedSec = s.active ? Math.max(0, Math.floor((s.now - s.active.start) / 1000)) : 0;
+    const sosT = s.sosAt ? (s.now - s.sosAt) / 1000 : 0;
+    const stepsDef = [
+      [0, 'Broadcasting over Bluetooth', 'Sending the SOS packet every 250 ms'],
+      [1.5, 'Picked up by 2 nearby phones', u.vertical === 'mining' ? 'HT009 (60 m) and LV03 (110 m) are relaying' : 'OP1003 (38 m) and OP1011 (72 m) are relaying'],
+      [3, 'Reached the cloud', u.vertical === 'mining' ? 'Relayed by LV03 from the crib hut' : 'Relayed by OP1011, which has signal'],
+      [4.2, 'The ' + u.supervisor + ' was notified', 'Push alert sent with your location'],
+    ];
+    const lessonsDone = s.completed;
+    const logs = (activeId && s.logs[activeId]) || [];
+    const passport = [...Object.keys(lessonsDone).map(id => ({ title: LESSONS.find(l => l.id === id).title, date: 'Today', score: lessonsDone[id] })), ...u.passport];
+    return {
+      acc,
+      is: { login: s.screen === 'login', gate: s.screen === 'gate', welcome: s.screen === 'welcome', app: inApp },
+      username: s.username, password: s.password, loginError: s.loginError,
+      onUser: e => this.setState({ username: e.target.value, loginError: '' }),
+      onPass: e => this.setState({ password: e.target.value, loginError: '' }),
+      demo: { arjun: s.username === 'arjun' ? '2px solid #1d1b16' : '1px solid #c9c4b8', bala: s.username === 'bala' ? '2px solid #1d1b16' : '1px solid #c9c4b8' },
+      pickArjun: () => this.setState({ username: 'arjun', loginError: '' }),
+      pickBala: () => this.setState({ username: 'bala', loginError: '' }),
+      signIn: this.signIn, signOut: this.signOut, runGate: this.runGate,
+      gateTitle: gateLocked ? 'Machine locked' : gatePassed ? 'Ready to start' : 'Checking before you start',
+      gateSub: gateLocked ? 'Fix the item below, then run the checks again.' : 'These checks run automatically. You can’t skip them.',
+      gateLocked,
+      gateRows: [
+        gateRow(g.seat, 'Seatbelt', { pending: 'Waiting', busy: 'Reading SeatbeltStatus for ' + u.machineId + '…', pass: 'Fastened · session ' + u.session, fail: 'Unfastened. Fasten your seatbelt, then re-run the checks.' }),
+        gateRow(g.cam, 'Operator camera', { pending: 'Waiting for seatbelt check', busy: 'Starting the front camera…', pass: 'On · face detected for fatigue monitoring', fail: 'Front camera is off. Turn it on so fatigue monitoring can run.' }),
+      ],
+      user: u, taskCount: tasks.length,
+      enterApp: () => this.setState({ screen: 'app' }),
+      appTitle: { task: 'Tasks', learn: 'Learning Hub', sos: 'Emergency SOS', profile: 'Profile' }[s.tab],
+      showFab: s.tab !== 'sos',
+      closeSos: () => this.setState({ tab: s.prevTab || 'task' }),
+      view,
+      taskSummary: tasks.length + ' tasks · ' + Math.floor(totalEta / 60) + ' h ' + (totalEta % 60) + ' min',
+      tasks: tasks.map(t => {
+        const isAct = t.id === activeId, isDone = !!s.done[t.id];
+        return { ...t, status: isAct ? 'In progress' : isDone ? 'Done' : 'Scheduled', opacity: isDone ? 0.6 : 1,
+          chipBg: isAct ? acc.base : isDone ? '#d7ecd6' : '#f3efe6', chipInk: isAct ? '#1d1b16' : isDone ? '#1e5b24' : '#5f5b52',
+          border: isAct ? acc.base : 'rgba(29,27,22,0.10)',
+          open: () => this.setState(isAct ? { taskView: 'active' } : { taskView: 'detail', selId: t.id }) };
+      }),
+      activeId,
+      sel: { ...sel, blocked: !!activeId && activeId !== sel.id, isDone: !!s.done[sel.id], doneMin: s.done[sel.id] || '',
+        cantStart: !!activeId || !!s.done[sel.id],
+        delta: sel.eta === sel.est ? 'Same as the planner baseline.' : Math.abs(sel.eta - sel.est) + ' min ' + (sel.eta > sel.est ? 'longer' : 'shorter') + ' than the planner baseline, based on ' + sel.weather.toLowerCase() + ' weather, your skill level and machine age.' },
+      backToList: () => this.setState({ taskView: 'list' }),
+      startTask: () => this.setState({ active: { id: sel.id, start: Date.now() }, now: Date.now(), taskView: 'active' }),
+      act, elapsed: mmss(elapsedSec),
+      progressPct: Math.min(100, elapsedSec / (act.eta * 60) * 100).toFixed(1) + '%',
+      recording: s.recording,
+      micBg: s.recording ? '#1d1b16' : acc.base, micInk: s.recording ? acc.base : '#1d1b16',
+      voiceLabel: s.recording ? 'Listening…' : 'Voice log',
+      voiceSub: s.recording ? 'Describe what you see. Transcribed on the phone.' : 'Tap and say what you notice. Works offline.',
+      toggleVoice: this.toggleVoice,
+      logs, logCount: logs.length, noLogs: logs.length === 0,
+      endTask: () => { const m = Math.max(1, Math.round(elapsedSec / 60)); this.setState({ done: { ...s.done, [activeId]: m + ' min' }, active: null, taskView: 'list', recording: false }); },
+      lessons: LESSONS.map(l => {
+        const sc = lessonsDone[l.id];
+        return { ...l, tag: sc != null ? 'Completed' : l.auto ? 'Assigned to you' : 'Optional',
+          chipBg: sc != null ? '#d7ecd6' : l.auto ? acc.base : '#f3efe6', chipInk: sc != null ? '#1e5b24' : '#1d1b16',
+          border: l.auto && sc == null ? acc.base : 'rgba(29,27,22,0.10)',
+          meta: sc != null ? 'Score ' + sc : l.steps.length + ' steps · 3 min',
+          note: l.auto ? u.flag : 'Learn the steering control using a mouse on the table.',
+          cta: sc != null ? 'Practice again' : 'Start lesson',
+          btnBg: sc == null && l.auto ? acc.base : 'transparent', btnBorder: sc == null && l.auto ? '0' : '1px solid #7a766c',
+          start: () => this.setState({ lesson: { id: l.id, step: 0 } }) };
+      }),
+      les: s.lesson ? {
+        title: lessonDef.title, object: lessonDef.object, control: lessonDef.control,
+        running: s.lesson.step < lessonDef.steps.length, done: s.lesson.step >= lessonDef.steps.length,
+        prompt: lessonDef.steps[Math.min(s.lesson.step, lessonDef.steps.length - 1)],
+        counter: s.lesson.step < lessonDef.steps.length ? 'Step ' + (s.lesson.step + 1) + ' of ' + lessonDef.steps.length : 'Complete',
+        dots: lessonDef.steps.map((_, i) => ({ bg: i <= s.lesson.step ? acc.base : '#e3ded2' })),
+        score: lessonDef.id === 'throttle' ? 92 : 88,
+      } : { dots: [] },
+      nextStep: () => {
+        const n = s.lesson.step + 1;
+        const upd = { lesson: { ...s.lesson, step: n } };
+        if (n >= lessonDef.steps.length) upd.completed = { ...s.completed, [lessonDef.id]: lessonDef.id === 'throttle' ? 92 : 88 };
+        this.setState(upd);
+      },
+      closeLesson: () => this.setState({ lesson: null }),
+      sosIdle: !s.sosAt, sosLive: !!s.sosAt,
+      sosOffset: (716.3 * (1 - s.hold)).toFixed(1),
+      sosHint: s.hold > 0 ? 'Keep holding' : 'Hold',
+      sosDown: this.sosDown, sosUp: this.sosUp,
+      sosClock: mmss(Math.floor(sosT)),
+      sosSteps: stepsDef.map(([t, label, detail], i) => {
+        const done = sosT >= t + 1.2, on = sosT >= t;
+        return { label, detail, done, opacity: on ? 1 : 0.4, chipBg: done ? '#1e5b24' : on ? '#b3261e' : '#c9c4b8', line: i === stepsDef.length - 1 ? 'transparent' : 'rgba(29,27,22,0.08)' };
+      }),
+      sosAttached: logs.length ? 'last voice log + sensor snapshot' : 'sensor snapshot',
+      cancelSos: () => this.setState({ sosAt: null }),
+      passport: passport.map((p, i) => ({ ...p, line: i === passport.length - 1 ? 'transparent' : 'rgba(29,27,22,0.08)' })),
+      nav: { task: navItem('task'), learn: navItem('learn'), sos: navItem('sos'), profile: navItem('profile') },
+      goTask: () => this.setState({ tab: 'task', taskView: s.active ? 'active' : 'list' }),
+      goLearn: () => this.setState({ tab: 'learn' }),
+      goSos: () => this.setState({ tab: 'sos', prevTab: s.tab === 'sos' ? s.prevTab : s.tab }),
+      goProfile: () => this.setState({ tab: 'profile' }),
+    };
+  }
+}
+</script>
+</body>
+</html>

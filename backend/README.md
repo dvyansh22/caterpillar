@@ -21,6 +21,9 @@ request and uses the Firebase Admin SDK for Firestore access.
 pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
+Local settings (Gemini key, retriever choice) go in `backend/.env` — copy `.env.example`. Without a
+key, `/rag/query` and `/voice/nlu` still answer by quoting the best manual section from
+`ml/data/manuals/`. Tests: `pip install -r requirements-dev.txt && pytest -q`.
 
 ## Structure
 ```
