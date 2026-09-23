@@ -1,0 +1,15 @@
+# Data + model training
+numpy==2.1.1
+pandas==2.2.2
+scikit-learn==1.5.2
+xgboost==2.1.1
+joblib==1.4.2
+Faker==28.4.1
+matplotlib==3.9.2
+jupyter==1.1.1
+
+# On-device model export (P2)
+tensorflow==2.17.0        # for TFLite conversion (seatbelt/fatigue/acoustic)
+librosa==0.10.2.post1     # MFCC features for acoustic anomaly
+
+# NOTE: keep shared pins aligned with backend/requirements.txt.

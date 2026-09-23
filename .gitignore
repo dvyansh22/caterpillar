@@ -1,0 +1,53 @@
+# ---- OS / editors ----
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# ---- Flutter / Dart (app/) ----
+app/.dart_tool/
+app/.flutter-plugins
+app/.flutter-plugins-dependencies
+app/build/
+app/.pub-cache/
+app/.pub/
+app/ios/Pods/
+app/android/.gradle/
+app/**/GeneratedPluginRegistrant.*
+*.iml
+
+# ---- Python (backend/, ml/) ----
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.egg-info/
+.ipynb_checkpoints/
+
+# ---- ML artifacts ----
+ml/data/synthetic/*.csv
+ml/models/*.pkl
+ml/models/*.joblib
+ml/models/*.tflite
+!ml/**/.gitkeep
+
+# ---- Unity (ar/) ----
+ar/Library/
+ar/Temp/
+ar/Obj/
+ar/Build/
+ar/Logs/
+ar/UserSettings/
+ar/*.csproj
+ar/*.sln
+
+# ---- Secrets / config ----
+*.env
+.env*
+!.env.example
+firebase/functions/node_modules/
+google-services.json
+GoogleService-Info.plist
+serviceAccount*.json

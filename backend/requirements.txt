@@ -1,0 +1,25 @@
+# FastAPI AI service
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+pydantic==2.9.2
+python-multipart==0.0.9
+
+# Firebase (auth verification + Firestore access)
+firebase-admin==6.5.0
+
+# ML serving
+scikit-learn==1.5.2
+xgboost==2.1.1
+numpy==2.1.1
+pandas==2.2.2
+joblib==1.4.2
+
+# RAG
+qdrant-client==1.11.2
+sentence-transformers==3.1.1
+google-generativeai==0.8.2
+
+# WebRTC signaling helpers
+websockets==13.1
+
+# NOTE: pin/upgrade during Phase 0. Keep this in sync with ml/requirements.txt where they overlap.

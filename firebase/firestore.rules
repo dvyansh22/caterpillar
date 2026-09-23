@@ -1,0 +1,35 @@
+rules_version = '2';
+// Smart Operator Assistant — Firestore security rules (scaffold; harden in Phase 1).
+// Roles are carried as Firebase Auth custom claims: operator | technician | owner | admin.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() { return request.auth != null; }
+    function role() { return request.auth.token.role; }
+    function isOwnerOrAdmin() { return isSignedIn() && (role() == 'owner' || role() == 'admin'); }
+
+    // Users: a user reads/writes their own doc; owner/admin can read all.
+    match /users/{uid} {
+      allow read: if isSignedIn() && (request.auth.uid == uid || isOwnerOrAdmin());
+      allow write: if isSignedIn() && (request.auth.uid == uid || role() == 'admin');
+    }
+
+    // Machines & tasks: readable by signed-in users; managed by owner/admin.
+    match /machines/{id} {
+      allow read: if isSignedIn();
+      allow write: if isOwnerOrAdmin();
+    }
+    match /tasks/{id} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn(); // operators update status; tighten later
+    }
+
+    // Operational writes from the field.
+    match /incidents/{id}   { allow read: if isSignedIn(); allow create: if isSignedIn(); }
+    match /telematics/{id}  { allow read: if isSignedIn(); allow create: if isSignedIn(); }
+    match /behaviorFlags/{id} { allow read: if isSignedIn(); allow create: if isSignedIn(); }
+    match /training/{id}    { allow read, write: if isSignedIn(); }
+    match /sosEvents/{id}   { allow read: if isSignedIn(); allow create: if isSignedIn(); }
+  }
+}
