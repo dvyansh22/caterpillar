@@ -7,6 +7,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel, ConfigDict
 
 from app.core.anomaly import score_session
+from app.core.risk import score_maintenance, score_safety
 
 router = APIRouter(prefix="/ml", tags=["ml"])
 
@@ -65,6 +66,7 @@ class AnomalyRequest(BaseModel):
     hours_since_break: float | None = None
     fatigue_score: float | None = None
     ambient_temp_c: float | None = None
+    fault_code: str | None = None
 
     def to_session(self) -> dict:
         return {
@@ -89,6 +91,7 @@ class AnomalyRequest(BaseModel):
             "HoursSinceBreak": self.hours_since_break,
             "FatigueScore": self.fatigue_score,
             "AmbientTemp_C": self.ambient_temp_c,
+            "FaultCode": self.fault_code,
         }
 
 
@@ -113,3 +116,29 @@ def anomaly(req: AnomalyRequest) -> AnomalyResponse:
         model_version=result.model_version,
         anomaly_type=result.anomaly_type,
     )
+
+
+# ---- /ml/safety and /ml/maintenance (P2, FR-ML-3) ----
+# Same session body as /ml/anomaly, so the app can send one payload to all three.
+SessionRequest = AnomalyRequest
+
+
+class RiskResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
+    flagged: bool
+    probability: float
+    reasons: list[str] = []
+    model_version: str
+
+
+@router.post("/safety", response_model=RiskResponse)
+def safety(req: SessionRequest) -> RiskResponse:
+    """Will this session raise a safety alert? (target SafetyAlertTriggered)"""
+    return RiskResponse(**vars(score_safety(req.to_session())))
+
+
+@router.post("/maintenance", response_model=RiskResponse)
+def maintenance(req: SessionRequest) -> RiskResponse:
+    """Does the machine need maintenance? (target MaintenanceDue)"""
+    return RiskResponse(**vars(score_maintenance(req.to_session())))

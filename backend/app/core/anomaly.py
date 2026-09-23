@@ -67,6 +67,8 @@ CATEGORICAL_COLUMNS = {
     "MachineType": sorted({t for _, t in NORMS}),
     "DataSource": ["Telematics", "Phone"],
     "SeatbeltStatus": ["Fastened", "Unfastened"],
+    "FaultCode": ["HYD_PRESSURE_LOW", "ENGINE_OVERHEAT", "AIR_FILTER_RESTRICTED", "FUEL_FILTER_CLOGGED",
+                  "TRACK_TENSION", "BRAKE_WEAR", "TIRE_PRESSURE_LOW"],
 }
 
 
@@ -111,29 +113,29 @@ def check_rules(row: dict[str, Any]) -> dict[str, list[str]]:
         hits.setdefault(kind, []).append(reason)
 
     norm = norm_for(row.get("Vertical"), row.get("MachineType"))
-    idle, duration = _num(row.get("IdlingTime_min")), _num(row.get("SessionDuration_min"))
+    idle, duration = as_float(row.get("IdlingTime_min")), as_float(row.get("SessionDuration_min"))
     if idle is not None and duration:
         ratio = idle / duration
         if ratio > IDLE_RATIO_LIMIT:
             add("ExcessiveIdle", f"Idle for {ratio:.0%} of the session (limit {IDLE_RATIO_LIMIT:.0%})")
 
-    harsh = _num(row.get("HarshEvents"))
+    harsh = as_float(row.get("HarshEvents"))
     if harsh is not None and harsh >= HARSH_EVENTS_LIMIT:
         add("UnsafeOperation", f"{harsh:.0f} harsh accel/brake/turn events (limit {HARSH_EVENTS_LIMIT - 1})")
-    speed = _num(row.get("MaxSpeed_kmh"))
+    speed = as_float(row.get("MaxSpeed_kmh"))
     if speed is not None and norm and speed > norm.speed_limit_kmh:
         add("UnsafeOperation", f"Max speed {speed:.0f} km/h over the {norm.speed_limit_kmh:.0f} km/h limit")
-    prox = _num(row.get("ProximityWarnings"))
+    prox = as_float(row.get("ProximityWarnings"))
     if prox is not None and prox >= PROXIMITY_LIMIT:
         add("UnsafeOperation", f"{prox:.0f} proximity warnings (worker/machine too close)")
 
-    fuel, cycles = _num(row.get("FuelUsed_L")), _num(row.get("LoadCycles"))
+    fuel, cycles = as_float(row.get("FuelUsed_L")), as_float(row.get("LoadCycles"))
     if fuel is not None and cycles is not None and norm:
         ratio = fuel / max(cycles, 1) / norm.fuel_per_cycle
         if ratio > FUEL_RATIO_LIMIT:
             add("FuelAnomaly", f"Fuel per load cycle is {ratio:.1f}x the normal rate")
 
-    temp = _num(row.get("EngineTemp_C"))
+    temp = as_float(row.get("EngineTemp_C"))
     if temp is not None and temp > OVERHEAT_TEMP_C:
         add("OverheatRisk", f"Engine temperature {temp:.0f}°C above {OVERHEAT_TEMP_C}°C")
     return hits
@@ -202,7 +204,7 @@ def score_session(row: dict[str, Any]) -> AnomalyResult:
     )
 
 
-def _num(value: Any) -> float | None:
+def as_float(value: Any) -> float | None:
     if value is None:
         return None
     try:
