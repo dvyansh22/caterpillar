@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<title>Smart Operator · Fleet</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+body { margin: 0; background: #141414; color: #F5F3EE; font-family: Inter, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+* { box-sizing: border-box; }
+a { color: var(--acc, #F6C611); text-decoration: none; }
+a:hover { filter: brightness(1.15); }
+button { font-family: inherit; }
+button:focus-visible, a:focus-visible { outline: 2px solid #F6C611; outline-offset: 2px; }
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #141414; --acc: {{ acc.base }}; --acc-tint: {{ acc.tint }};">
+
+  <header style="position: sticky; top: 0; z-index: 20; min-height: 64px; display: flex; flex-wrap: wrap; align-items: center; column-gap: 32px; padding: 0 32px; border-bottom: 1px solid #2E2D2A; background: #141414;">
+    <div style="display: flex; align-items: center; gap: 10px; height: 64px; white-space: nowrap;">
+      <div style="width: 28px; height: 28px; border-radius: 6px; background: var(--acc, #F6C611); display: flex; align-items: center; justify-content: center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#141414" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h20"></path><path d="M4 20v-5l4-5h5l2 5h4v5"></path><path d="m8 10 3-6 6 3"></path></svg></div>
+      <div style="font-family: Oswald, sans-serif; font-size: 16px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase;">Smart Operator <span style="color: #97958F; font-weight: 500;">· Fleet</span></div>
+    </div>
+    <nav style="display: flex; align-items: stretch; gap: 28px; height: 64px; margin-right: auto;">
+      <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="4">
+        <button style="height: 64px; padding: 0 2px; border: 0; border-top: 3px solid transparent; border-bottom: 3px solid {{ t.line }}; background: transparent; font-family: Oswald, sans-serif; font-size: 14px; font-weight: 500; letter-spacing: 1.4px; text-transform: uppercase; color: {{ t.color }}; cursor: pointer; white-space: nowrap;" style-hover="color: #F5F3EE;" onClick="{{ t.go }}">{{ t.label }}</button>
+      </sc-for>
+    </nav>
+    <div style="display: flex; align-items: center; gap: 12px; height: 64px;">
+      <div style="display: flex; height: 34px; padding: 3px; gap: 2px; border-radius: 17px; border: 1px solid #2E2D2A;">
+        <button style="height: 26px; padding: 0 12px; border: 0; border-radius: 13px; display: flex; align-items: center; gap: 7px; font-family: Oswald, sans-serif; font-size: 12px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; white-space: nowrap; background: {{ seg.cBg }}; color: {{ seg.cInk }};" onClick="{{ setConstruction }}"><span style="width: 7px; height: 7px; border-radius: 4px; background: #F6C611;"></span>Construction</button>
+        <button style="height: 26px; padding: 0 12px; border: 0; border-radius: 13px; display: flex; align-items: center; gap: 7px; font-family: Oswald, sans-serif; font-size: 12px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; white-space: nowrap; background: {{ seg.mBg }}; color: {{ seg.mInk }};" onClick="{{ setMining }}"><span style="width: 7px; height: 7px; border-radius: 4px; background: #F28C28;"></span>Mining</button>
+      </div>
+      <div style="height: 34px; padding: 0 14px 0 5px; border-radius: 17px; background: #242321; display: flex; align-items: center; gap: 8px; font-size: 13px; color: #CDCAC3; white-space: nowrap;"><span style="width: 24px; height: 24px; border-radius: 12px; background: var(--acc, #F6C611); color: #141414; display: flex; align-items: center; justify-content: center; font-family: Oswald, sans-serif; font-size: 12px; font-weight: 700;">{{ site.initial }}</span>{{ site.owner }}</div>
+    </div>
+  </header>
+
+  <main style="max-width: 1280px; margin: 0 auto; padding: 40px 32px 56px; display: flex; flex-direction: column; gap: 24px;">
+
+    <sc-if value="{{ is.overview }}" hint-placeholder-val="{{ true }}">
+    <div data-screen-label="Overview" style="display: flex; flex-direction: column; gap: 24px;">
+      <div style="display: flex; flex-direction: column; gap: 12px; padding-bottom: 4px;">
+        <div style="display: flex; align-items: center; gap: 10px; font-family: Oswald, sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 1.6px; text-transform: uppercase; color: var(--acc, #F6C611); white-space: nowrap;"><span style="width: 32px; height: 8px; flex: none; background: repeating-linear-gradient(-45deg, var(--acc, #F6C611) 0 5px, transparent 5px 9px);"></span>{{ site.id }} · {{ site.name }} · Wed 23 Sep</div>
+        <h1 style="margin: 0; font-family: Oswald, sans-serif; font-size: 48px; line-height: 1; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase;">Fleet overview</h1>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px;">
+        <div style="background: #1D1C1A; border: 1px solid #2E2D2A; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;"><span style="font-family: Oswald, sans-serif; font-size: 13px; font-weight: 500; letter-spacing: 1.4px; text-transform: uppercase; color: #97958F; white-space: nowrap;">Active machines</span><span style="width: 32px; height: 32px; flex: none; border-radius: 16px; border: 1.5px solid var(--acc, #F6C611); color: var(--acc, #F6C611); display: flex; align-items: center; justify-content: center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"></path><path d="M15 18H9"></path><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"></path><circle cx="17" cy="18" r="2"></circle><circle cx="7" cy="18" r="2"></circle></svg></span></div>
+          <div style="font-family: Oswald, sans-serif; font-size: 52px; line-height: 1; font-weight: 700; font-variant-numeric: tabular-nums;">{{ kpi.active }}<span style="font-size: 24px; font-weight: 500; color: #97958F;"> / {{ kpi.total }}</span></div>
+          <div style="font-size: 13px; color: #97958F;">{{ kpi.activePhone }} via phone sensors</div>
+        </div>
+        <div style="background: #1D1C1A; border: 1px solid #2E2D2A; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;"><span style="font-family: Oswald, sans-serif; font-size: 13px; font-weight: 500; letter-spacing: 1.4px; text-transform: uppercase; color: #97958F; white-space: nowrap;">Safety alerts today</span><span style="width: 32px; height: 32px; flex: none; border-radius: 16px; border: 1.5px solid {{ kpi.alertColor }}; color: {{ kpi.alertColor }}; display: flex; align-items: center; justify-content: center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path><path d="M12 8v4"></path><path d="M12 16h.01"></path></svg></span></div>
+          <div style="font-family: Oswald, sans-serif; font-size: 52px; line-height: 1; font-weight: 700; font-variant-numeric: tabular-nums; color: {{ kpi.alertColor }};">{{ kpi.alerts }}</div>
+          <div style="font-size: 13px; color: #97958F;">{{ kpi.alertsYesterday }} yesterday</div>
+        </div>
+        <div style="background: #1D1C1A; border: 1px solid #2E2D2A; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;"><span style="font-family: Oswald, sans-serif; font-size: 13px; font-weight: 500; letter-spacing: 1.4px; text-transform: uppercase; color: #97958F; white-space: nowrap;">Open incidents</span><span style="width: 32px; height: 32px; flex: none; border-radius: 16px; border: 1.5px solid var(--acc, #F6C611); color: var(--acc, #F6C611); display: flex; align-items: center; justify-content: center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11h4"></path><path d="M12 16h4"></path><path d="M8 11h.01"></path><path d="M8 16h.01"></path></svg></span></div>
+          <div style="font-family: Oswald, sans-serif; font-size: 52px; line-height: 1; font-weight: 700; font-variant-numeric: tabular-nums;">{{ kpi.open }}</div>
+          <div style="font-size: 13px; color: #97958F;">Logged since 06:00</div>
+        </div>
+        <div style="background: #1D1C1A; border: 1px solid #2E2D2A; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;"><span style="font-family: Oswald, sans-serif; font-size: 13px; font-weight: 500; letter-spacing: 1.4px; text-transform: uppercase; color: #97958F; white-space: nowrap;">Avg idle time</span><span style="width: 32px; height: 32px; flex: none; border-radius: 16px; border: 1.5px solid var(--acc, #F6C611); color: var(--acc, #F6C611); display: flex; align-items: center; justify-content: center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg></span></div>
+          <div style="font-family: Oswald, sans-serif; font-size: 52px; line-height: 1; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--acc, #F6C611);">{{ kpi.idle }}%</div>
+          <div style="font-size: 13px; color: #97958F;">{{ kpi.idleDelta }} vs yesterday</div>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
+        <section style="flex: 3 1 540px; min-width: 0; background: #1D1C1A; border: 1px solid #2E2D2A; border-radius: 16px; overflow: hidden;">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 20px;">
+            <h2 style="margin: 0; font-family: Oswald, sans-serif; font-size: 20px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; white-space: nowrap;">Fleet status</h2>
+            <a href="#" style="display: flex; align-items: center; gap: 6px; font-family: Oswald, sans-serif; font-size: 13px; font-weight: 500; letter-spacing: 1.2px; text-transform: uppercase; white-space: nowrap;" onClick="{{ goFleet }}">View all {{ kpi.total }}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></a>
+          </div>
+          <div style="display: grid; grid-template-columns: minmax(0,1.6fr) minmax(0,1.1fr) 88px 144px 48px; gap: 12px; align-items: center; height: 38px; padding: 0 20px; background: #242321; font-family: Oswald, sans-serif; font-size: 12px; font-weight: 500; letter-spacing: 1.4px; text-transform: uppercase; color: #97958F; white-space: nowrap;">
+            <div>Machine</div><div>Operator</div><div>Status</div><div>Data source</div><div style="text-align: right;">Alerts</div>
+          </div>
+          <sc-for list="{{ overviewRows }}" as="r" hint-placeholder-count="6">
+            <button style="display: grid; grid-template-columns: minmax(0,1.6fr) minmax(0,1.1fr) 88px 144px 48px; gap: 12px; align-items: center; width: 100%; min-height: 58px; padding: 8px 20px; border: 0; border-top: 1px solid #2A2927; background: transparent; text-align: left; cursor: pointer; color: #F5F3EE;" style-hover="background: #22211F;" onClick="{{ r.open }}">
+              <div style="display: flex; flex-direction: column; gap: 1px; min-width: 0;"><span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px; font-weight: 500;">{{ r.id }}</span><span style="font-size: 13px; color: #97958F; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ r.type }}</span></div>
+              <div style="font-size: 14px; color: {{ r.opColor }}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ r.operator }}</div>
+              <span style="justify-self: start; height: 22px; padding: 0 10px; border-radius: 11px; display: inline-flex; align-items: center; white-space: nowrap; font-family: Oswald, sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.9px; text-transform: uppercase; background: {{ r.stBg }}; color: {{ r.stInk }}; border: 1px solid {{ r.stBorder }};">{{ r.status }}</span>
+              <span style="justify-self: start; height: 22px; padding: 0 10px 0 8px; border-radius: 11px; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-family: Oswald, sans-serif; font-size: 11px; font-weight: 500; letter-spacing: 0.9px; text-transform: uppercase; color: {{ r.srcInk }}; border: 1px solid {{ r.srcBorder }};">
+                <sc-if value="{{ r.phone }}" hint-placeholder-val="{{ true }}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect width="14" height="20" x="5" y="2" rx="2"></rect><path d="M12 18h.01"></path></svg></sc-if>
+                <sc-if value="{{ r.tele }}" hint-placeholder-val="{{ false }}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"></path><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"></path><circle cx="12" cy="12" r="2"></circle><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"></path><path d="M19.1 4.9C23 8.8 23 15.1 19.1 19"></path></svg></sc-if>
+                {{ r.source }}
+              </span>
+              <div style="justify-self: end; display: flex; align-items: center; gap: 6px;">
+                <sc-if value="{{ r.hasAlerts }}" hint-placeholder-val="{{ false }}"><span style="width: 8px; height: 8px; border-radius: 4px; background: #E5484D;"></span><span style="font-family: Oswald, sans-serif; font-size: 16px; font-weight: 600; color: #FF8589;">{{ r.alerts }}</span></sc-if>
+                <sc-if value="{{ r.noAlerts }}" hint-placeholder-val="{{ true }}"><span style="color: #6F6D68;">—</span></sc-if>
+              </div>
+            </button>
+          </sc-for>
+        </section>
+
+        <section style="flex: 2 1 340px; min-width: 0; background: #1D1C1A; border: 1px solid #2E2D2A; border-radius: 16px; overflow: hidden;">
+          <div style="padding: 20px; display: flex; flex-direction: column; gap: 4px;">
+            <h2 style="margin: 0; font-family: Oswald, sans-serif; font-size: 20px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; white-space: nowrap;">Incidents by machine</h2>
+            <div style="font-size: 13px; color: #97958F;">Latest log per machine · click for history</div>
+          </div>
+          <sc-for list="{{ byMachine }}" as="g" hint-placeholder-count="5">
+            <div style="border-top: 1px solid #2A2927; background: {{ g.bg }};">
+              <button style="display: grid; grid-template-columns: 8px minmax(0,1fr) auto 18px; gap: 12px; align-items: center; width: 100%; min-height: 62px; padding: 8px 20px; border: 0; background: transparent; text-align: left; cursor: pointer; color: #F5F3EE;" style-hover="background: #22211F;" onClick="{{ g.toggle }}">
+                <span style="width: 8px; height: 8px; border-radius: 4px; background: {{ g.dot }};"></span>
+                <div style="display: flex; flex-direction: column; gap: 3px; min-width: 0;">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px; font-weight: 500;">{{ g.id }}</span>
+                    <span style="height: 18px; padding: 0 7px; border-radius: 9px; border: 1px solid #3A3935; display: inline-flex; align-items: center; white-space: nowrap; font-family: Oswald, sans-serif; font-size: 10px; font-weight: 500; letter-spacing: 0.9px; text-transform: uppercase; color: #CDCAC3;">{{ g.countLabel }}</span>
+                  </div>
+                  <div style="font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ g.latest }}</div>
+                </div>
+                <span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; color: #97958F; white-space: nowrap;">{{ g.time }}</span>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#97958F" stroke-width="2" stroke-linecap="round" style="transform: rotate({{ g.rot }}); transition: transform 150ms;"><path d="m6 9 6 6 6-6"></path></svg>
+              </button>
+              <sc-if value="{{ g.expanded }}" hint-placeholder-val="{{ false }}">
+                <div style="padding: 0 20px 12px 40px; display: flex; flex-direction: column;">
+                  <sc-for list="{{ g.history }}" as="h" hint-placeholder-count="2">
+                    <button style="display: grid; grid-template-columns: 10px minmax(0,1fr) auto; gap: 10px; align-items: start; width: 100%; padding: 10px 0; border: 0; border-top: 1px dashed #34332F; background: transparent; text-align: left; cursor: pointer; color: #F5F3EE;" style-hover="color: var(--acc, #F6C611);" onClick="{{ h.open }}">
+                      <span style="width: 6px; height: 6px; margin-top: 7px; border-radius: 3px; background: {{ h.dot }};"></span>
+                      <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
+                        <span style="font-size: 14px; line-height: 20px; text-wrap: pretty;">{{ h.title }}</span>
+                        <span style="font-family: Oswald, sans-serif; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: #97958F;">{{ h.kindLabel }}</span>
+                      </div>
+                      <span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; color: #97958F; white-space: nowrap; padding-top: 2px;">{{ h.when }}</span>
+                    </button>
+                  </sc-for>
+                </div>
+              </sc-if>
+            </div>
+          </sc-for>
+          <div style="padding: 16px 20px; border-top: 1px solid #2A2927;"><a href="#" style="display: inline-flex; align-items: center; gap: 6px; font-family: Oswald, sans-serif; font-size: 13px; font-weight: 500; letter-spacing: 1.2px; text-transform: uppercase; white-space: nowrap;" onClick="{{ goIncidents }}">View all incidents<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></a></div>
+        </section>
+      </div>
+
+      <section style="background: #1D1C1A; border: 1px solid #2E2D2A; border-radius: 16px; padding: 20px 24px 24px; display: flex; flex-direction: column; gap: 28px;">
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <h2 style="margin: 0; font-family: Oswald, sans-serif; font-size: 20px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; white-space: nowrap;">Idle time this week</h2>
+          <div style="font-size: 13px; color: #97958F;">Fleet average · last 7 days</div>
+        </div>
+        <div style="display: grid; grid-template-columns: 40px minmax(0,1fr); gap: 12px;">
+          <div style="height: 180px; display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end; font-family: Oswald, sans-serif; font-size: 12px; letter-spacing: 0.6px; color: #97958F; font-variant-numeric: tabular-nums; transform: translateY(-8px);">
+            <span>40%</span><span>20%</span><span>0%</span>
+          </div>
+          <div style="display: flex; flex-direction: column;">
+            <div style="height: 180px; display: flex; align-items: flex-end; justify-content: space-around; gap: 16px; border-bottom: 1px solid #3A3935;">
+              <sc-for list="{{ bars }}" as="b" hint-placeholder-count="7">
+                <div style="flex: 1 1 0; max-width: 72px; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 6px; cursor: default;" onMouseEnter="{{ b.enter }}" onMouseLeave="{{ b.leave }}">
+                  <span style="font-family: Oswald, sans-serif; font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; color: #F5F3EE; opacity: {{ b.labelOpacity }}; transition: opacity 120ms;">{{ b.value }}%</span>
+                  <div style="width: 100%; height: {{ b.h }}; border-radius: 4px 4px 0 0; background: var(--acc, #F6C611); opacity: {{ b.opacity }}; transition: opacity 120ms;"></div>
+                </div>
+              </sc-for>
+            </div>
+            <div style="display: flex; justify-content: space-around; gap: 16px; padding-top: 10px;">
+              <sc-for list="{{ bars }}" as="b" hint-placeholder-count="7">
+                <div style="flex: 1 1 0; max-width: 72px; text-align: center; font-family: Oswald, sans-serif; font-size: 12px; letter-spacing: 1.2px; text-transform: uppercase; color: {{ b.dayColor }}; font-weight: {{ b.dayWeight }};">{{ b.day }}</div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+    </sc-if>
+
+    <sc-if value="{{ is.fleet }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Fleet" style="display: flex; flex-direction: column; gap: 24px;">
+      <div style="display: flex; flex-direction: column; gap: 12px; padding-bottom: 4px;">
+        <div style="display: flex; align-items: center; gap: 10px; font-family: Oswald, sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 1.6px; text-transform: uppercase; color: var(--acc, #F6C611); white-space: nowrap;"><span style="width: 32px; height: 8px; flex: none; background: repeating-linear-gradient(-45deg, var(--acc, #F6C611) 0 5px, transparent 5px 9px);"></span>{{ site.id }} · {{ site.name }}</div>
+        <h1 style="margin: 0; font-family: Oswald, sans-serif; font-size: 48px; line-height: 1; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase;">Fleet</h1>
+        <div style="font-size: 15px; color: #CDCAC3;">{{ kpi.total }} machines · {{ kpi.phoneCount }} on phone sensors · {{ kpi.teleCount }} on telematics</div>
+      </div>
+      <section style="background: #1D1C1A; border: 1px solid #2E2D2A; border-radius: 16px; overflow: hidden;">
+        <div style="display: grid; grid-template-columns: minmax(0,1.6fr) minmax(0,1.1fr) 88px 144px 48px; gap: 12px; align-items: center; height: 40px; padding: 0 20px; background: #242321; font-family: Oswald, sans-serif; font-size: 12px; font-weight: 500; letter-spacing: 1.4px; text-transform: uppercase; color: #97958F; white-space: nowrap;">
+          <div>Machine</div><div>Operator</div><div>Status</div><div>Data source</div><div style="text-align: right;">Alerts</div>
+        </div>
+        <sc-for list="{{ fleetRows }}" as="r" hint-placeholder-count="8">
+          <button style="display: grid; grid-template-columns: minmax(0,1.6fr) minmax(0,1.1fr) 88px 144px 48px; gap: 12px; align-items: center; width: 100%; min-height: 60px; padding: 8px 20px; border: 0; border-top: 1px solid #2A2927; background: {{ r.rowBg }}; text-align: left; cursor: pointer; color: #F5F3EE;" style-hover="background: #22211F;" onClick="{{ r.open }}">
+            <div style="display: flex; flex-direction: column; gap: 1px; min-width: 0;"><span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px; font-weight: 500;">{{ r.id }}</span><span style="font-size: 13px; color: #97958F; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ r.type }}</span></div>
+            <div style="font-size: 14px; color: {{ r.opColor }}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ r.operator }}</div>
+            <span style="justify-self: start; height: 22px; padding: 0 10px; border-radius: 11px; display: inline-flex; align-items: center; white-space: nowrap; font-family: Oswald, sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.9px; text-transform: uppercase; background: {{ r.stBg }}; color: {{ r.stInk }}; border: 1px solid {{ r.stBorder }};">{{ r.status }}</span>
+            <span style="justify-self: start; height: 22px; padding: 0 10px 0 8px; border-radius: 11px; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-family: Oswald, sans-serif; font-size: 11px; font-weight: 500; letter-spacing: 0.9px; text-transform: uppercase; color: {{ r.srcInk }}; border: 1px solid {{ r.srcBorder }};">
+              <sc-if value="{{ r.phone }}" hint-placeholder-val="{{ true }}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect width="14" height="20" x="5" y="2" rx="2"></rect><path d="M12 18h.01"></path></svg></sc-if>
+              <sc-if value="{{ r.tele }}" hint-placeholder-val="{{ false }}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"></path><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"></path><circle cx="12" cy="12" r="2"></circle><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"></path><path d="M19.1 4.9C23 8.8 23 15.1 19.1 19"></path></svg></sc-if>
+              {{ r.source }}
+            </span>
+            <div style="justify-self: end; display: flex; align-items: center; gap: 6px;">
+              <sc-if value="{{ r.hasAlerts }}" hint-placeholder-val="{{ false }}"><span style="width: 8px; height: 8px; border-radius: 4px; background: #E5484D;"></span><span style="font-family: Oswald, sans-serif; font-size: 16px; font-weight: 600; color: #FF8589;">{{ r.alerts }}</span></sc-if>
+              <sc-if value="{{ r.noAlerts }}" hint-placeholder-val="{{ true }}"><span style="color: #6F6D68;">—</span></sc-if>
+            </div>
+          </button>
+        </sc-for>
+      </section>
+    </div>
+    </sc-if>
+
+    <sc-if value="{{ is.incidents }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Incidents" style="display: flex; flex-direction: column; gap: 24px;">
+      <div style="display: flex; flex-direction: column; gap: 12px; padding-bottom: 4px;">
+        <div style="display: flex; align-items: center; gap: 10px; font-family: Oswald, sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 1.6px; text-transform: uppercase; color: var(--acc, #F6C611); white-space: nowrap;"><span style="width: 32px; height: 8px; flex: none; background: repeating-linear-gradient(-45deg, var(--acc, #F6C611) 0 5px, transparent 5px 9px);"></span>{{ site.id }} · {{ site.name }}</div>
+        <h1 style="margin: 0; font-family: Oswald, sans-serif; font-size: 48px; line-height: 1; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase;">Incidents</h1>
+        <div style="font-size: 15px; color: #CDCAC3;">Safety alerts and operator observations, grouped by machine. Newest first.</div>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
+        <div style="flex: 0 0 200px; display: flex; flex-direction: column; gap: 8px;">
+          <sc-for list="{{ filters }}" as="f" hint-placeholder-count="3">
+            <button style="height: 44px; padding: 0 14px; border-radius: 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-family: Oswald, sans-serif; font-size: 14px; font-weight: 500; letter-spacing: 1.2px; text-transform: uppercase; cursor: pointer; background: {{ f.bg }}; color: {{ f.ink }}; border: 1px solid {{ f.border }};" style-hover="background: #22211F;" onClick="{{ f.pick }}"><span>{{ f.label }}</span><span style="font-variant-numeric: tabular-nums; font-weight: 600; color: {{ f.countInk }};">{{ f.count }}</span></button>
+          </sc-for>
+        </div>
+        <div style="flex: 1 1 460px; min-width: 0; display: flex; flex-direction: column; gap: 28px;">
+          <sc-for list="{{ groups }}" as="g" hint-placeholder-count="2">
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 14px; font-weight: 500; color: var(--acc, #F6C611);">{{ g.id }}</span>
+                <span style="font-size: 14px; color: #F5F3EE; white-space: nowrap;">{{ g.type }}</span>
+                <span style="font-size: 13px; color: #97958F; white-space: nowrap;">· {{ g.operator }}</span>
+                <span style="margin-left: auto; height: 20px; padding: 0 8px; border-radius: 10px; border: 1px solid #3A3935; display: inline-flex; align-items: center; white-space: nowrap; font-family: Oswald, sans-serif; font-size: 11px; font-weight: 500; letter-spacing: 0.9px; text-transform: uppercase; color: #CDCAC3;">{{ g.countLabel }}</span>
+              </div>
+              <div style="background: #1D1C1A; border: 1px solid #2E2D2A; border-radius: 16px; overflow: hidden;">
+                <sc-for list="{{ g.items }}" as="i" hint-placeholder-count="3">
+                  <div style="border-top: {{ i.topLine }};">
+                    <button style="display: grid; grid-template-columns: 8px minmax(0,1fr) auto 20px; gap: 12px; align-items: center; width: 100%; min-height: 60px; padding: 8px 20px; border: 0; background: transparent; text-align: left; cursor: pointer; color: #F5F3EE;" style-hover="background: #22211F;" onClick="{{ i.toggle }}">
+                      <span style="width: 8px; height: 8px; border-radius: 4px; background: {{ i.dot }};"></span>
+                      <div style="display: flex; flex-direction: column; gap: 3px; min-width: 0;">
+                        <div style="font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ i.title }}</div>
+                        <div style="display: flex; align-items: center; gap: 8px; font-family: Oswald, sans-serif; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: #97958F; white-space: nowrap;">{{ i.kindLabel }}<sc-if value="{{ i.isLatest }}" hint-placeholder-val="{{ false }}"><span style="height: 16px; padding: 0 6px; border-radius: 8px; background: var(--acc, #F6C611); color: #141414; display: inline-flex; align-items: center; font-size: 10px; font-weight: 600;">Latest</span></sc-if></div>
+                      </div>
+                      <span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; color: #97958F; white-space: nowrap;">{{ i.when }}</span>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#97958F" stroke-width="2" stroke-linecap="round" style="transform: rotate({{ i.rot }}); transition: transform 150ms;"><path d="m6 9 6 6 6-6"></path></svg>
+                    </button>
+                    <sc-if value="{{ i.open }}" hint-placeholder-val="{{ false }}">
+                      <div style="padding: 4px 20px 20px 40px; display: flex; flex-direction: column; gap: 16px;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px;">
+                          <div style="display: flex; flex-direction: column; gap: 4px;"><span style="font-family: Oswald, sans-serif; font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; color: #97958F;">Machine</span><span style="font-size: 14px;"><span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px;">{{ i.machine }}</span> · {{ i.machineType }}</span></div>
+                          <div style="display: flex; flex-direction: column; gap: 4px;"><span style="font-family: Oswald, sans-serif; font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; color: #97958F;">Operator</span><span style="font-size: 14px;">{{ i.operator }} <span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; color: #97958F;">{{ i.opId }}</span></span></div>
+                          <div style="display: flex; flex-direction: column; gap: 4px;"><span style="font-family: Oswald, sans-serif; font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; color: #97958F;">Location</span><span style="font-size: 14px;">{{ i.location }}</span></div>
+                          <div style="display: flex; flex-direction: column; gap: 4px;"><span style="font-family: Oswald, sans-serif; font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; color: #97958F;">GPS</span><span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px;">{{ i.gps }}</span></div>
+                        </div>
+                        <sc-if value="{{ i.hasTranscript }}" hint-placeholder-val="{{ false }}">
+                          <div style="display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; border-radius: 12px; background: #242321;">
+                            <span style="display: flex; align-items: center; gap: 8px; font-family: Oswald, sans-serif; font-size: 11px; font-weight: 500; letter-spacing: 1.2px; text-transform: uppercase; color: var(--acc, #F6C611);"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><path d="M12 19v3"></path></svg>Voice log transcript</span>
+                            <span style="font-size: 15px; line-height: 23px;">“{{ i.transcript }}”</span>
+                          </div>
+                        </sc-if>
+                        <sc-if value="{{ i.hasDetail }}" hint-placeholder-val="{{ false }}">
+                          <div style="font-size: 14px; line-height: 21px; color: #CDCAC3; text-wrap: pretty;">{{ i.detail }}</div>
+                        </sc-if>
+                      </div>
+                    </sc-if>
+                  </div>
+                </sc-for>
+                <sc-if value="{{ g.hasMore }}" hint-placeholder-val="{{ false }}">
+                  <button style="width: 100%; height: 46px; padding: 0 20px; border: 0; border-top: 1px solid #2A2927; background: #181817; display: flex; align-items: center; gap: 6px; font-family: Oswald, sans-serif; font-size: 13px; font-weight: 500; letter-spacing: 1.2px; text-transform: uppercase; color: var(--acc, #F6C611); cursor: pointer; text-align: left; white-space: nowrap;" style-hover="background: #242321;" onClick="{{ g.toggleHistory }}">{{ g.historyLabel }}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="transform: rotate({{ g.historyRot }});"><path d="m6 9 6 6 6-6"></path></svg></button>
+                </sc-if>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+    <sc-if value="{{ is.training }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Training" style="display: flex; flex-direction: column; gap: 24px;">
+      <div style="display: flex; flex-direction: column; gap: 12px; padding-bottom: 4px;">
+        <div style="display: flex; align-items: center; gap: 10px; font-family: Oswald, sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 1.6px; text-transform: uppercase; color: var(--acc, #F6C611); white-space: nowrap;"><span style="width: 32px; height: 8px; flex: none; background: repeating-linear-gradient(-45deg, var(--acc, #F6C611) 0 5px, transparent 5px 9px);"></span>{{ site.id }} · {{ site.name }}</div>
+        <h1 style="margin: 0; font-family: Oswald, sans-serif; font-size: 48px; line-height: 1; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase;">Training</h1>
+        <div style="font-size: 15px; color: #CDCAC3;">Lessons assigned after behavior flags, plus required modules</div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 14px; padding: 20px; max-width: 340px; background: #1D1C1A; border: 1px solid #2E2D2A; border-radius: 16px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;"><span style="font-family: Oswald, sans-serif; font-size: 13px; font-weight: 500; letter-spacing: 1.4px; text-transform: uppercase; color: #97958F; white-space: nowrap;">Team compliance</span><span style="width: 32px; height: 32px; flex: none; border-radius: 16px; border: 1.5px solid var(--acc, #F6C611); color: var(--acc, #F6C611); display: flex; align-items: center; justify-content: center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"></path><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"></path></svg></span></div>
+        <div style="font-family: Oswald, sans-serif; font-size: 52px; line-height: 1; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--acc, #F6C611);">{{ team.pct }}%</div>
+        <div style="font-size: 13px; color: #97958F;">{{ team.done }} of {{ team.total }} assigned lessons complete</div>
+      </div>
+      <section style="background: #1D1C1A; border: 1px solid #2E2D2A; border-radius: 16px; overflow: hidden;">
+        <div style="display: grid; grid-template-columns: minmax(0,1.2fr) minmax(140px,1.4fr) 104px 96px; gap: 24px; align-items: center; height: 40px; padding: 0 20px; background: #242321; font-family: Oswald, sans-serif; font-size: 12px; font-weight: 500; letter-spacing: 1.4px; text-transform: uppercase; color: #97958F; white-space: nowrap;">
+          <div>Operator</div><div>Lessons</div><div>Done</div><div style="text-align: right;">Latest score</div>
+        </div>
+        <sc-for list="{{ trainees }}" as="p" hint-placeholder-count="6">
+          <div style="display: grid; grid-template-columns: minmax(0,1.2fr) minmax(140px,1.4fr) 104px 96px; gap: 24px; align-items: center; min-height: 66px; padding: 10px 20px; border-top: 1px solid #2A2927;">
+            <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><span style="font-size: 15px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ p.name }}</span><span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; color: #97958F;">{{ p.machine }}</span></div>
+            <div style="display: flex; gap: 4px;">
+              <sc-for list="{{ p.segs }}" as="sg" hint-placeholder-count="3">
+                <div style="flex: 1 1 0; height: 10px; border-radius: 2px; background: {{ sg.bg }};"></div>
+              </sc-for>
+            </div>
+            <div style="font-family: Oswald, sans-serif; font-size: 13px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; color: #CDCAC3; white-space: nowrap;">{{ p.done }} / {{ p.total }} lessons</div>
+            <div style="font-family: Oswald, sans-serif; font-size: 24px; line-height: 1; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right;">{{ p.score }}</div>
+          </div>
+        </sc-for>
+      </section>
+    </div>
+    </sc-if>
+
+  </main>
+
+  <sc-if value="{{ drawerOpen }}" hint-placeholder-val="{{ false }}">
+  <div style="position: fixed; inset: 0; z-index: 40;">
+    <div style="position: absolute; inset: 0; background: rgba(0,0,0,0.6);" onClick="{{ closeDrawer }}"></div>
+    <aside data-screen-label="Machine drawer" style="position: absolute; top: 0; right: 0; bottom: 0; width: min(440px, 100%); background: #1D1C1A; border-left: 1px solid #2E2D2A; box-shadow: -16px 0 40px rgba(0,0,0,0.5); display: flex; flex-direction: column; overflow-y: auto;">
+      <div style="padding: 24px; display: flex; flex-direction: column; gap: 14px; border-bottom: 1px solid #2E2D2A;">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+          <span style="display: flex; align-items: center; gap: 10px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 14px; font-weight: 500; color: var(--acc, #F6C611);"><span style="width: 26px; height: 7px; background: repeating-linear-gradient(-45deg, var(--acc, #F6C611) 0 4px, transparent 4px 8px);"></span>{{ m.id }}</span>
+          <button style="width: 36px; height: 36px; border: 1px solid #3A3935; border-radius: 18px; background: transparent; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #F5F3EE;" style-hover="background: #242321;" onClick="{{ closeDrawer }}" aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button>
+        </div>
+        <div style="font-family: Oswald, sans-serif; font-size: 30px; line-height: 1.05; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase;">{{ m.type }}</div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <span style="height: 24px; padding: 0 10px; border-radius: 12px; display: inline-flex; align-items: center; white-space: nowrap; font-family: Oswald, sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.9px; text-transform: uppercase; background: {{ m.stBg }}; color: {{ m.stInk }}; border: 1px solid {{ m.stBorder }};">{{ m.status }}</span>
+          <span style="height: 24px; padding: 0 10px; border-radius: 12px; display: inline-flex; align-items: center; white-space: nowrap; font-family: Oswald, sans-serif; font-size: 11px; font-weight: 500; letter-spacing: 0.9px; text-transform: uppercase; color: {{ m.srcInk }}; border: 1px solid {{ m.srcBorder }};">{{ m.source }}</span>
+        </div>
+      </div>
+      <div style="padding: 4px 24px 24px; display: flex; flex-direction: column;">
+        <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 14px 0; border-bottom: 1px solid #2A2927;"><span style="font-family: Oswald, sans-serif; font-size: 12px; letter-spacing: 1.2px; text-transform: uppercase; color: #97958F; white-space: nowrap;">Operator</span><span style="font-size: 15px; text-align: right;">{{ m.operator }}</span></div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 14px 0; border-bottom: 1px solid #2A2927;"><span style="font-family: Oswald, sans-serif; font-size: 12px; letter-spacing: 1.2px; text-transform: uppercase; color: #97958F; white-space: nowrap;">Last task</span><span style="font-size: 15px; text-align: right;">{{ m.lastTask }}</span></div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 14px 0; border-bottom: 1px solid #2A2927;"><span style="font-family: Oswald, sans-serif; font-size: 12px; letter-spacing: 1.2px; text-transform: uppercase; color: #97958F; white-space: nowrap;">Idle today</span><span style="font-family: Oswald, sans-serif; font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums;">{{ m.idle }}</span></div>
+        <div style="display: flex; flex-direction: column; gap: 10px; padding: 14px 0; border-bottom: 1px solid #2A2927;">
+          <span style="font-family: Oswald, sans-serif; font-size: 12px; letter-spacing: 1.2px; text-transform: uppercase; color: #97958F;">Open flags</span>
+          <sc-if value="{{ m.noFlags }}" hint-placeholder-val="{{ true }}"><span style="font-size: 15px; color: #97958F;">None</span></sc-if>
+          <sc-for list="{{ m.flags }}" as="fl" hint-placeholder-count="0">
+            <div style="display: flex; align-items: center; gap: 10px; font-size: 15px;"><span style="width: 8px; height: 8px; border-radius: 4px; background: {{ fl.dot }}; flex: none;"></span><span>{{ fl.text }}</span></div>
+          </sc-for>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 10px; padding: 14px 0; border-bottom: 1px solid #2A2927;">
+          <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 16px;"><span style="font-family: Oswald, sans-serif; font-size: 12px; letter-spacing: 1.2px; text-transform: uppercase; color: #97958F; white-space: nowrap;">Training compliance</span><span style="font-size: 15px; white-space: nowrap; font-variant-numeric: tabular-nums;">{{ m.training }}</span></div>
+          <div style="display: flex; gap: 4px;">
+            <sc-for list="{{ m.segs }}" as="sg" hint-placeholder-count="3">
+              <div style="flex: 1 1 0; height: 10px; border-radius: 2px; background: {{ sg.bg }};"></div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px; padding: 14px 0;">
+          <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 16px;"><span style="font-family: Oswald, sans-serif; font-size: 12px; letter-spacing: 1.2px; text-transform: uppercase; color: #97958F; white-space: nowrap;">Incident log</span><span style="font-family: Oswald, sans-serif; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: #97958F; white-space: nowrap;">{{ m.logCount }}</span></div>
+          <sc-if value="{{ m.noLog }}" hint-placeholder-val="{{ false }}"><span style="font-size: 15px; color: #97958F; padding-top: 6px;">Nothing logged</span></sc-if>
+          <sc-for list="{{ m.log }}" as="h" hint-placeholder-count="0">
+            <button style="display: grid; grid-template-columns: 10px minmax(0,1fr) auto; gap: 10px; align-items: start; width: 100%; padding: 8px 0; border: 0; background: transparent; text-align: left; cursor: pointer; color: #F5F3EE;" style-hover="color: var(--acc, #F6C611);" onClick="{{ h.open }}">
+              <span style="width: 6px; height: 6px; margin-top: 8px; border-radius: 3px; background: {{ h.dot }};"></span>
+              <span style="font-size: 14px; line-height: 21px; text-wrap: pretty;">{{ h.title }}</span>
+              <span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; color: #97958F; white-space: nowrap; padding-top: 2px;">{{ h.when }}</span>
+            </button>
+          </sc-for>
+        </div>
+        <div style="margin-top: 8px; display: grid; grid-template-columns: 18px minmax(0,1fr); gap: 10px; align-items: start; padding: 14px 16px; border-radius: 12px; border: 1px solid {{ m.noteBorder }}; color: #CDCAC3; font-size: 13px; line-height: 20px;"><span style="color: {{ m.noteIcon }}; padding-top: 1px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg></span><span style="text-wrap: pretty;">{{ m.note }}</span></div>
+      </div>
+    </aside>
+  </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;vertical&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;options&quot;: [&quot;construction&quot;, &quot;mining&quot;], &quot;default&quot;: &quot;construction&quot;, &quot;tsType&quot;: &quot;'construction' | 'mining'&quot;, &quot;section&quot;: &quot;Demo&quot;}, &quot;startTab&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;options&quot;: [&quot;overview&quot;, &quot;fleet&quot;, &quot;incidents&quot;, &quot;training&quot;], &quot;default&quot;: &quot;overview&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Demo&quot;}}">
+const ACC = {
+  construction: { base: '#F6C611', tint: '#2E2710' },
+  mining: { base: '#F28C28', tint: '#33230F' },
+};
+const SITES = {
+  construction: { id: 'SITE01', name: 'Metro depot', owner: 'Deepa Menon', initial: 'D', alertsYesterday: 1,
+    idle: [26, 24, 21, 25, 23, 19, 22],
+    machines: [
+      { id: 'EXC004', type: 'Cat 320 Excavator', op: 'Arjun Kumar', opId: 'OP1001', status: 'In use', phone: true, last: 'Trenching · Zone C', idle: 18, flags: [['Harsh throttle · 22 Sep', 'anomaly']], tr: [2, 3, 92] },
+      { id: 'GRD002', type: 'Cat 140 Motor Grader', op: 'Priya Nair', opId: 'OP1004', status: 'In use', phone: false, last: 'Grading · Pad 4', idle: 12, flags: [], tr: [3, 3, 95] },
+      { id: 'LDR003', type: 'Cat 950 Wheel Loader', op: 'Ravi Shankar', opId: 'OP1006', status: 'In use', phone: true, last: 'Material loading · Stockpile 2', idle: 24, flags: [['Unfastened seatbelt · 22 Sep', 'safety']], tr: [2, 3, 84] },
+      { id: 'DZR004', type: 'Cat D6 Dozer', op: 'Suresh Iyer', opId: 'OP1008', status: 'Idle', phone: false, last: 'Earth excavation · Zone A', idle: 41, flags: [['Excessive idling · today', 'anomaly']], tr: [1, 2, 71] },
+      { id: 'BHL005', type: 'Cat 432 Backhoe Loader', op: 'Kiran Rao', opId: 'OP1011', status: 'In use', phone: true, last: 'Trenching · Block D', idle: 15, flags: [], tr: [3, 3, 89] },
+      { id: 'TRK006', type: 'Cat 730 Articulated Truck', op: 'Manoj Das', opId: 'OP1013', status: 'In use', phone: false, last: 'Haul to Stockpile 2', idle: 20, flags: [], tr: [3, 4, 86] },
+      { id: 'CMP007', type: 'Cat CS56 Compactor', op: null, status: 'Offline', phone: true, last: 'Compaction · Pad 2, yesterday', idle: null, flags: [] },
+      { id: 'EXC008', type: 'Cat 313 Excavator', op: null, status: 'Offline', phone: true, last: 'Demolition · Block D, Monday', idle: null, flags: [] },
+    ],
+    incidents: [
+      { id: 'c1', day: 0, kind: 'safety', title: 'Ground crew behind swing radius', m: 'EXC004', time: '14:02', loc: 'Zone C · Utility corridor', gps: '12.9698, 77.7500', transcript: 'Ground crew walking behind the swing radius near the utility corridor.' },
+      { id: 'c2', day: 0, kind: 'obs', title: 'Soft soil, cave-in risk', m: 'EXC004', time: '13:41', loc: 'Zone C · Trench edge', gps: '12.9701, 77.7496', transcript: 'Soft soil at the trench edge. Possible cave-in risk.' },
+      { id: 'c3', day: 0, kind: 'anomaly', title: 'Excessive idling flagged', m: 'DZR004', time: '13:18', loc: 'Zone A · North cut', gps: '12.9712, 77.7489', detail: 'Idle for 41 of the last 70 minutes with the engine on. Throttle control lesson auto-assigned.' },
+      { id: 'c4', day: 0, kind: 'safety', title: 'Pedestrian proximity alert', m: 'BHL005', time: '11:55', loc: 'Block D · East wall', gps: '12.9689, 77.7511', detail: 'Worker phone detected within 4 m over Bluetooth while the boom was moving.' },
+      { id: 'c5', day: 0, kind: 'obs', title: 'Hydraulic whine on full bucket', m: 'EXC004', time: '10:12', loc: 'Zone C · Utility corridor', gps: '12.9697, 77.7502', transcript: 'Hydraulic whine when lifting a full bucket.' },
+      { id: 'c6', day: 1, kind: 'safety', title: 'Unfastened seatbelt while moving', m: 'LDR003', time: '16:40', loc: 'Stockpile 2', gps: '12.9705, 77.7478', detail: 'Seatbelt not detected by the cab camera for 6 minutes of travel.' },
+      { id: 'c7', day: 1, kind: 'obs', title: 'Loose gravel on haul path', m: 'TRK006', time: '09:05', loc: 'Haul path to Stockpile 2', gps: '12.9709, 77.7483', transcript: 'Loose gravel on the haul path past the gate. Needs grading.' },
+    ] },
+  mining: { id: 'SITE03', name: 'North pit', owner: 'Eswar Prasad', initial: 'E', alertsYesterday: 3,
+    idle: [20, 22, 19, 17, 21, 16, 18],
+    machines: [
+      { id: 'HT012', type: 'Cat 777 Haul Truck', op: 'Bala Murugan', opId: 'OP2007', status: 'In use', phone: false, last: 'Load-haul-dump · Ramp R2', idle: 14, flags: [['Seatbelt + fatigue · today', 'safety']], tr: [3, 3, 93] },
+      { id: 'SH02', type: 'Cat 6040 Hydraulic Shovel', op: 'Venkat Raman', opId: 'OP2002', status: 'In use', phone: false, last: 'Ore loading · Face 7', idle: 12, flags: [], tr: [2, 2, 90] },
+      { id: 'HT009', type: 'Cat 777 Haul Truck', op: 'Dinesh Kumar', opId: 'OP2011', status: 'In use', phone: true, last: 'Load-haul-dump · Ramp R2', idle: 22, flags: [['Harsh loaded turn · today', 'anomaly']], tr: [2, 4, 76] },
+      { id: 'LV03', type: 'Light Vehicle', op: 'Anand Pillai', opId: 'OP2015', status: 'In use', phone: true, last: 'Pit patrol · Benches 395–410', idle: 16, flags: [], tr: [2, 2, 88] },
+      { id: 'DR07', type: 'Cat MD6250 Drill', op: 'Gopal Reddy', opId: 'OP2019', status: 'Idle', phone: false, last: 'Bench drilling · Bench 395', idle: 31, flags: [], tr: [1, 2, 74] },
+      { id: 'DZ08', type: 'Cat D10 Dozer', op: 'Senthil Nathan', opId: 'OP2021', status: 'In use', phone: true, last: 'Haul road maintenance · R2', idle: 13, flags: [], tr: [3, 4, 85] },
+      { id: 'HT014', type: 'Cat 777 Haul Truck', op: null, status: 'Offline', phone: true, last: 'Load-haul-dump · Ramp R1, yesterday', idle: null, flags: [] },
+      { id: 'WL05', type: 'Cat 992 Wheel Loader', op: null, status: 'Offline', phone: false, last: 'Stockpile loading, Monday', idle: null, flags: [] },
+    ],
+    incidents: [
+      { id: 'm1', day: 0, kind: 'safety', title: 'Unfastened seatbelt + fatigue', m: 'HT012', time: '14:26', loc: 'Haul road R2', gps: '11.5362, 79.4853', detail: 'Fatigue score 0.78, 9.5 hours into the shift. Seatbelt not detected by the cab camera.' },
+      { id: 'm2', day: 0, kind: 'obs', title: 'Rough patch ramp R2', m: 'HT012', time: '13:52', loc: 'Ramp R2 · km 1.4', gps: '11.5371, 79.4861', transcript: 'Rough patch on ramp R2 near km 1.4.' },
+      { id: 'm3', day: 0, kind: 'anomaly', title: 'Harsh loaded turn', m: 'HT009', time: '12:37', loc: 'Crusher approach', gps: '11.5348, 79.4839', detail: 'Lateral acceleration spike while loaded. Haul-road procedures lesson auto-assigned.' },
+      { id: 'm4', day: 0, kind: 'obs', title: 'Light vehicle in blind spot at crusher', m: 'HT012', time: '11:20', loc: 'Crusher pad', gps: '11.5345, 79.4836', transcript: 'Light vehicle parked in my blind spot at the crusher.' },
+      { id: 'm5', day: 1, kind: 'anomaly', title: 'Queue idle at shovel SH02', m: 'HT009', time: '15:10', loc: 'Face 7 loading queue', gps: '11.5389, 79.4877', detail: 'Waited 24 minutes in the loading queue with the engine on.' },
+      { id: 'm6', day: 1, kind: 'obs', title: 'Dust limiting visibility at bench 395', m: 'DR07', time: '08:48', loc: 'Bench 395 · Pattern 12', gps: '11.5394, 79.4882', transcript: 'Heavy dust at bench 395. Visibility under 20 metres.' },
+    ] },
+};
+const DOT = { safety: '#E5484D', anomaly: '#E0A21A', obs: '#8A8882' };
+const KIND = { safety: 'Safety alert', anomaly: 'Unusual behavior', obs: 'Voice observation' };
+const DAYS = ['Thu', 'Fri', 'Sat', 'Sun', 'Mon', 'Tue', 'Today'];
+const TABS = [['overview', 'Overview'], ['fleet', 'Fleet'], ['incidents', 'Incidents'], ['training', 'Training']];
+
+class Component extends DCLogic {
+  state = { vertical: null, tab: null, drawer: null, hover: -1, filter: 'all', open: {}, expanded: null, history: {} };
+  renderVals() {
+    const s = this.state;
+    const v = s.vertical || this.props.vertical || 'construction';
+    const tab = s.tab || this.props.startTab || 'overview';
+    const site = SITES[v], acc = ACC[v];
+    const ms = site.machines;
+    const alertsFor = id => site.incidents.filter(i => i.day === 0 && i.kind !== 'obs' && i.m === id).length;
+    const status = st => st === 'In use' ? { stBg: acc.base, stInk: '#141414', stBorder: acc.base }
+      : st === 'Idle' ? { stBg: '#242321', stInk: '#CDCAC3', stBorder: '#242321' }
+      : { stBg: 'transparent', stInk: '#97958F', stBorder: '#3A3935' };
+    const src = phone => phone ? { source: 'Phone sensors', srcBorder: acc.base, srcInk: acc.base } : { source: 'Telematics', srcBorder: '#3A3935', srcInk: '#CDCAC3' };
+    const segs = (done, total) => Array.from({ length: total }, (_, k) => ({ bg: k < done ? acc.base : '#2E2D2A' }));
+    const row = m => {
+      const a = alertsFor(m.id);
+      return { ...m, ...status(m.status), ...src(m.phone), operator: m.op || 'Unassigned', opColor: m.op ? '#F5F3EE' : '#97958F',
+        tele: !m.phone, alerts: a, hasAlerts: a > 0, noAlerts: a === 0,
+        rowBg: s.drawer === m.id ? '#22211F' : 'transparent',
+        open: () => this.setState({ drawer: m.id }) };
+    };
+    const active = ms.filter(m => m.status !== 'Offline');
+    const today = site.incidents.filter(i => i.day === 0);
+    const idleToday = site.idle[6], idleDelta = idleToday - site.idle[5];
+    const findM = id => ms.find(m => m.id === id);
+    const openIncident = id => this.setState({ tab: 'incidents', filter: 'all', drawer: null, open: { [id]: true } });
+    const inc = i => {
+      const m = findM(i.m) || {};
+      return { ...i, machine: i.m, machineType: m.type, operator: m.op || 'Unassigned', opId: m.opId || '', location: i.loc,
+        dot: DOT[i.kind], kindLabel: KIND[i.kind], hasTranscript: !!i.transcript, hasDetail: !!i.detail };
+    };
+    const sorted = [...site.incidents].sort((a, b) => a.day - b.day || b.time.localeCompare(a.time));
+    const when = i => (i.day === 0 ? 'Today ' : 'Yest. ') + i.time;
+    const hist = id => sorted.filter(i => i.m === id).map(i => ({ ...inc(i), when: when(i), open: () => openIncident(i.id) }));
+    const byMachine = [...new Set(sorted.map(i => i.m))].slice(0, 5).map(id => {
+      const h = hist(id), top = h[0], ex = s.expanded === id;
+      return { id, latest: top.title, dot: top.dot, time: when(top), countLabel: h.length + (h.length === 1 ? ' log' : ' logs'),
+        expanded: ex, rot: ex ? '180deg' : '0deg', bg: ex ? '#22211F' : 'transparent', history: h,
+        toggle: () => this.setState({ expanded: this.state.expanded === id ? null : id }) };
+    });
+    const matches = i => s.filter === 'all' || (s.filter === 'safety' ? i.kind !== 'obs' : i.kind === 'obs');
+    const groups = [...new Set(sorted.filter(matches).map(i => i.m))].map(id => {
+      const all = sorted.filter(i => i.m === id && matches(i));
+      const mm = findM(id) || {};
+      const showAll = !!s.history[id] || all.slice(1).some(i => s.open[i.id]);
+      const items = showAll ? all : all.slice(0, 1);
+      return { id, type: mm.type, operator: mm.op || 'Unassigned', countLabel: all.length + (all.length === 1 ? ' log' : ' logs'),
+        hasMore: all.length > 1, historyLabel: showAll ? 'Hide history' : 'Show history · ' + (all.length - 1) + ' earlier',
+        historyRot: showAll ? '180deg' : '0deg',
+        toggleHistory: () => this.setState({ history: { ...this.state.history, [id]: !showAll }, open: showAll ? Object.fromEntries(Object.entries(this.state.open).filter(([k]) => !all.slice(1).some(i => i.id === k))) : this.state.open }),
+        items: items.map((i, idx) => ({ ...inc(i), when: when(i), isLatest: idx === 0 && all.length > 1, open: !!s.open[i.id], rot: s.open[i.id] ? '180deg' : '0deg',
+          topLine: idx === 0 ? '0' : '1px solid #2A2927',
+          toggle: () => this.setState({ open: { ...this.state.open, [i.id]: !this.state.open[i.id] } }) })) };
+    });
+    const counts = { all: site.incidents.length, safety: site.incidents.filter(i => i.kind !== 'obs').length, obs: site.incidents.filter(i => i.kind === 'obs').length };
+    const ops = ms.filter(m => m.op);
+    const tDone = ops.reduce((a, m) => a + m.tr[0], 0), tTotal = ops.reduce((a, m) => a + m.tr[1], 0);
+    const dm = findM(s.drawer);
+    let m = { flags: [], segs: [], log: [] };
+    if (dm) {
+      const h = hist(dm.id);
+      m = { ...dm, ...status(dm.status), ...src(dm.phone), operator: dm.op ? dm.op + ' · ' + dm.opId : 'Unassigned', lastTask: dm.last,
+        idle: dm.idle == null ? '—' : dm.idle + '%',
+        flags: dm.flags.map(([text, k]) => ({ text, dot: DOT[k] })), noFlags: dm.flags.length === 0,
+        training: dm.tr ? dm.tr[0] + ' of ' + dm.tr[1] + ' lessons · latest ' + dm.tr[2] : 'No operator assigned',
+        segs: dm.tr ? segs(dm.tr[0], dm.tr[1]) : [],
+        note: dm.phone ? 'No telematics hardware on this machine. Its data comes from the operator’s phone: camera, motion sensors, GPS and Bluetooth.' : 'Product Link telematics, plus the operator’s phone for seatbelt, fatigue and proximity.',
+        log: h, logCount: h.length ? h.length + (h.length === 1 ? ' log' : ' logs') : '', noLog: h.length === 0,
+        noteBorder: dm.phone ? acc.base : '#2E2D2A', noteIcon: dm.phone ? acc.base : '#97958F' };
+    }
+    const on = { bg: '#F5F3EE', ink: '#141414' }, off = { bg: 'transparent', ink: '#97958F' };
+    const c = v === 'construction' ? on : off, mn = v === 'mining' ? on : off;
+    const switchTo = nv => this.setState({ vertical: nv, drawer: null, open: {}, hover: -1, expanded: null, history: {} });
+    const hasAlerts = today.some(i => i.kind !== 'obs');
+    return {
+      acc, site,
+      tabs: TABS.map(([k, label]) => ({ label, line: tab === k ? acc.base : 'transparent', color: tab === k ? '#F5F3EE' : '#97958F', go: () => this.setState({ tab: k, drawer: null }) })),
+      seg: { cBg: c.bg, cInk: c.ink, mBg: mn.bg, mInk: mn.ink },
+      setConstruction: () => switchTo('construction'), setMining: () => switchTo('mining'),
+      is: { overview: tab === 'overview', fleet: tab === 'fleet', incidents: tab === 'incidents', training: tab === 'training' },
+      kpi: { active: active.length, total: ms.length, activePhone: active.filter(x => x.phone).length,
+        alerts: today.filter(i => i.kind !== 'obs').length, alertColor: hasAlerts ? '#E5484D' : '#F5F3EE',
+        alertsYesterday: site.alertsYesterday, open: today.length, idle: idleToday,
+        idleDelta: (idleDelta > 0 ? '+' : idleDelta < 0 ? '−' : '±') + Math.abs(idleDelta) + ' pts',
+        phoneCount: ms.filter(x => x.phone).length, teleCount: ms.filter(x => !x.phone).length },
+      overviewRows: active.map(row), fleetRows: ms.map(row),
+      byMachine,
+      goFleet: e => { e.preventDefault(); this.setState({ tab: 'fleet' }); },
+      goIncidents: e => { e.preventDefault(); this.setState({ tab: 'incidents' }); },
+      bars: site.idle.map((val, i) => ({ value: val, day: DAYS[i], h: (val / 40 * 100).toFixed(1) + '%',
+        labelOpacity: s.hover === i ? 1 : 0, opacity: s.hover === -1 || s.hover === i ? 1 : 0.35,
+        dayColor: i === 6 ? acc.base : '#97958F', dayWeight: i === 6 ? 600 : 500,
+        enter: () => this.setState({ hover: i }), leave: () => this.setState({ hover: -1 }) })),
+      filters: [['all', 'All'], ['safety', 'Safety'], ['obs', 'Observations']].map(([k, label]) => ({ label, count: counts[k],
+        bg: s.filter === k ? acc.tint : 'transparent', border: s.filter === k ? acc.base : '#2E2D2A',
+        ink: s.filter === k ? acc.base : '#CDCAC3', countInk: s.filter === k ? acc.base : '#97958F',
+        pick: () => this.setState({ filter: k }) })),
+      groups,
+      team: { pct: Math.round(tDone / tTotal * 100), done: tDone, total: tTotal },
+      trainees: ops.map(o => ({ name: o.op, machine: o.id + ' · ' + o.opId, done: o.tr[0], total: o.tr[1], score: o.tr[2], segs: segs(o.tr[0], o.tr[1]) })),
+      drawerOpen: !!dm, m, closeDrawer: () => this.setState({ drawer: null }),
+    };
+  }
+}
+</script>
+</body>
+</html>

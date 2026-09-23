@@ -30,6 +30,11 @@ dependencies:
   record: ^7.1.1
   path_provider: ^2.1.6
 
+  # Night Shift design system: Oswald/Inter/JetBrains Mono via google_fonts,
+  # fl_chart for the dashboard idle chart. Icons use Material outlined symbols.
+  google_fonts: ^6.2.1
+  fl_chart: ^0.69.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
