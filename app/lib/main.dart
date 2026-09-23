@@ -36,13 +36,16 @@ class SmartOperatorApp extends StatelessWidget {
       // screens (web); harmless on real devices (<= this width).
       builder: (context, child) => Consumer(
         builder: (context, ref, _) {
-          // Operator app is capped to phone width; the owner dashboard uses the full window.
+          // Only cap the operator app to phone width on WIDE screens (web/desktop).
+          // On a real phone we must not wrap it, or the Scaffold height collapses.
           final isDashboard = ref.watch(navProvider.select((s) => s.phase)) == AppPhase.dashboard;
+          final isWide = MediaQuery.of(context).size.width > 500;
+          final cap = isWide && !isDashboard;
           return ColoredBox(
             color: AppColors.bg,
-            child: isDashboard
-                ? child!
-                : Center(child: SizedBox(width: 430, height: double.infinity, child: child)),
+            child: cap
+                ? Center(child: SizedBox(width: 430, height: double.infinity, child: child))
+                : child!,
           );
         },
       ),
