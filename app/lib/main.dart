@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/config.dart';
 import 'core/nav.dart';
 import 'core/theme.dart';
-import 'core/tokens.dart';
 import 'features/auth/login_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
 import 'features/safety_gate/safety_gate_screen.dart';
@@ -32,23 +31,6 @@ class SmartOperatorApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: buildAppTheme(),
       home: const _Root(),
-      // The design targets a phone. Cap the width so it reads like a phone on wide
-      // screens (web); harmless on real devices (<= this width).
-      builder: (context, child) => Consumer(
-        builder: (context, ref, _) {
-          // Only cap the operator app to phone width on WIDE screens (web/desktop).
-          // On a real phone we must not wrap it, or the Scaffold height collapses.
-          final isDashboard = ref.watch(navProvider.select((s) => s.phase)) == AppPhase.dashboard;
-          final isWide = MediaQuery.of(context).size.width > 500;
-          final cap = isWide && !isDashboard;
-          return ColoredBox(
-            color: AppColors.bg,
-            child: cap
-                ? Center(child: SizedBox(width: 430, height: double.infinity, child: child))
-                : child!,
-          );
-        },
-      ),
     );
   }
 }
@@ -59,16 +41,15 @@ class _Root extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final phase = ref.watch(navProvider.select((s) => s.phase));
-    final child = switch (phase) {
+    // Return the active screen directly. (The former AnimatedSwitcher + phone-width
+    // builder wrapper are gone; they added a loosely-constrained Stack/SizedBox layer
+    // that only muddied debugging of the real bottom-nav height bug in MainShell.)
+    return switch (phase) {
       AppPhase.login => const LoginScreen(),
       AppPhase.gate => const SafetyGateScreen(),
       AppPhase.welcome => const WelcomeScreen(),
       AppPhase.app => const MainShell(),
       AppPhase.dashboard => const DashboardScreen(),
     };
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 220),
-      child: KeyedSubtree(key: ValueKey(phase), child: child),
-    );
   }
 }

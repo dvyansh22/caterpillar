@@ -36,6 +36,7 @@ class MainShell extends ConsumerWidget {
     final learnFlow = nav.lessonId == null ? const LearningHubScreen() : const ArLessonScreen();
 
     final body = IndexedStack(
+      sizing: StackFit.expand, // fill the body region so every tab gets tight height constraints
       index: nav.tab.index,
       children: [taskFlow, learnFlow, const ProfileScreen(), const SosScreen()],
     );
@@ -114,13 +115,19 @@ class MainShell extends ConsumerWidget {
         border: Border(top: BorderSide(color: AppColors.dividerRow)),
       ),
       padding: const EdgeInsets.only(top: 8, bottom: 24),
-      child: Row(
-        children: [
-          item(AppTab.task, Icons.assignment_outlined, 'Task',
-              () => ref.read(navProvider.notifier).goTask(hasActive: hasActive)),
-          item(AppTab.learn, Icons.school_outlined, 'Learning Hub', () => ref.read(navProvider.notifier).goLearn()),
-          item(AppTab.profile, Icons.person_outline, 'Profile', () => ref.read(navProvider.notifier).goProfile()),
-        ],
+      // Fixed height: the item Columns default to mainAxisSize.max, which under the
+      // Scaffold's loose bottom-bar constraints would expand to fill the whole screen
+      // (collapsing the body and floating the bar mid-screen). Bounding it here fixes that.
+      child: SizedBox(
+        height: 56,
+        child: Row(
+          children: [
+            item(AppTab.task, Icons.assignment_outlined, 'Task',
+                () => ref.read(navProvider.notifier).goTask(hasActive: hasActive)),
+            item(AppTab.learn, Icons.school_outlined, 'Learning Hub', () => ref.read(navProvider.notifier).goLearn()),
+            item(AppTab.profile, Icons.person_outline, 'Profile', () => ref.read(navProvider.notifier).goProfile()),
+          ],
+        ),
       ),
     );
   }
