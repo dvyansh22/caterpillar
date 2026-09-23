@@ -13,13 +13,16 @@ import 'voice_service.dart';
 /// English/Hindi/Tamil auto-detected). Works with no network once the model is
 /// downloaded on first run. Record-then-transcribe (not streaming).
 class SherpaVoiceService implements VoiceService {
+  // Whisper "tiny" (multilingual: en/hi/ta) rather than "base": ~103 MB vs ~153 MB
+  // and far lighter to decode, so the on-device transcribe doesn't spike memory
+  // and get the app OOM-killed mid-decode on mid-range phones.
   static const _baseUrl =
-      'https://huggingface.co/csukuangfj/sherpa-onnx-whisper-base/resolve/main';
+      'https://huggingface.co/csukuangfj/sherpa-onnx-whisper-tiny/resolve/main';
   // filename -> approx bytes (for download progress)
   static const _files = <String, double>{
-    'base-encoder.int8.onnx': 27.8e6,
-    'base-decoder.int8.onnx': 124.6e6,
-    'base-tokens.txt': 0.8e6,
+    'tiny-encoder.int8.onnx': 12.9e6,
+    'tiny-decoder.int8.onnx': 89.9e6,
+    'tiny-tokens.txt': 0.8e6,
   };
 
   sherpa.OfflineRecognizer? _recognizer;
@@ -36,7 +39,7 @@ class SherpaVoiceService implements VoiceService {
 
   Future<Directory> _modelDir() async {
     final dir = await getApplicationSupportDirectory();
-    final md = Directory('${dir.path}/whisper-base');
+    final md = Directory('${dir.path}/whisper-tiny');
     if (!md.existsSync()) md.createSync(recursive: true);
     return md;
   }
@@ -69,11 +72,11 @@ class SherpaVoiceService implements VoiceService {
       final config = sherpa.OfflineRecognizerConfig(
         model: sherpa.OfflineModelConfig(
           whisper: sherpa.OfflineWhisperModelConfig(
-            encoder: '${md.path}/base-encoder.int8.onnx',
-            decoder: '${md.path}/base-decoder.int8.onnx',
+            encoder: '${md.path}/tiny-encoder.int8.onnx',
+            decoder: '${md.path}/tiny-decoder.int8.onnx',
             task: 'transcribe', // language auto-detected (en/hi/ta)
           ),
-          tokens: '${md.path}/base-tokens.txt',
+          tokens: '${md.path}/tiny-tokens.txt',
           numThreads: 2,
           debug: false,
         ),
@@ -121,9 +124,17 @@ class SherpaVoiceService implements VoiceService {
     await _recorder.stop();
     await _sub?.cancel();
     _sub = null;
+    final samples = _pcm16ToFloat(_buf.toBytes());
+    final rec = _recognizer;
+    // Guard the native decoder: handing Whisper empty/very short audio (a fast
+    // double-tap, or a device that delivered no PCM) reads out of bounds in the
+    // feature extractor and takes the whole app down with a native crash that a
+    // Dart try/catch cannot intercept. Require ~0.4 s (6400 samples @ 16 kHz).
+    if (rec == null || samples.length < 6400) {
+      _onError?.call('Didn\'t catch that. Hold the mic and speak.');
+      return;
+    }
     try {
-      final samples = _pcm16ToFloat(_buf.toBytes());
-      final rec = _recognizer!;
       final s = rec.createStream();
       s.acceptWaveform(samples: samples, sampleRate: 16000);
       rec.decode(s);
