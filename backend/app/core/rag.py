@@ -29,7 +29,9 @@ GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 TOP_K = 4
 FAULT_BOOST = 0.5  # the fault code's own section should win when the app sends a fault_code
 WRONG_MACHINE_PENALTY = 0.2
-MIN_SCORE = {"embeddings": 0.25, "tfidf": 0.05}
+# Below this, treat the question as not covered. Off-topic questions score <= ~0.16 with the
+# multilingual model on the sample manuals; on-topic English/Hindi questions score 0.45+.
+MIN_SCORE = {"embeddings": 0.20, "tfidf": 0.05}
 
 NOT_FOUND = ("I couldn't find this in the machine manuals. Stop if it is unsafe, and ask your "
              "supervisor or a technician.")
@@ -124,9 +126,11 @@ class Retriever:
             return scores
         return (self._matrix @ self._tfidf.transform([query]).T).toarray().ravel()
 
-    def search(self, query: str, machine_type: str | None = None, fault_code: str | None = None,
-               k: int = TOP_K) -> list[Hit]:
-        scores = self._scores(query)
+    def search(self, query: str | list[str], machine_type: str | None = None,
+               fault_code: str | None = None, k: int = TOP_K) -> list[Hit]:
+        """Score each section against every phrasing of the question and keep the best."""
+        queries = [query] if isinstance(query, str) else query
+        scores = np.max([self._scores(q) for q in queries], axis=0)
         for i, chunk in enumerate(self.chunks):
             if fault_code and fault_code in chunk.fault_codes:
                 scores[i] += FAULT_BOOST
@@ -144,13 +148,18 @@ def get_retriever() -> Retriever:
 
 def answer(question: str, machine_type: str | None = None, fault_code: str | None = None,
            language: str = "en") -> Answer:
-    query = " ".join(filter(None, [question, fault_code]))
-    hits = get_retriever().search(query, machine_type=machine_type, fault_code=fault_code)
+    use_llm = bool(os.environ.get("GEMINI_API_KEY"))
+    queries = [question]
+    if use_llm:
+        queries.append(_english_query(question))
+    queries = [" ".join(filter(None, [q, fault_code])) for q in dict.fromkeys(queries)]
+
+    hits = get_retriever().search(queries, machine_type=machine_type, fault_code=fault_code)
     if not hits:
         return Answer(NOT_FOUND, [], grounded=False)
 
     sources = list(dict.fromkeys(h.chunk.source for h in hits))
-    if os.environ.get("GEMINI_API_KEY"):
+    if use_llm:
         try:
             return Answer(_generate(question, hits, language), sources, grounded=True)
         except Exception as exc:  # quota, network, bad key — never fail the operator
@@ -158,10 +167,28 @@ def answer(question: str, machine_type: str | None = None, fault_code: str | Non
     return Answer(_extractive(hits[0]), sources[:1], grounded=True)
 
 
-def _generate(question: str, hits: list[Hit], language: str) -> str:
+def _gemini():
     import google.generativeai as genai
 
     genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+    return genai.GenerativeModel(GEMINI_MODEL)
+
+
+def _english_query(question: str) -> str:
+    """Rewrite Hinglish / regional-language speech as a short English search query.
+
+    The embedding model handles Devanagari Hindi well but not romanised Hindi ("brake kamzor hai").
+    """
+    try:
+        prompt = ("Rewrite this heavy-equipment operator's question as one short English search "
+                  "query. Output only the query.\n\n" + question)
+        return _gemini().generate_content(prompt).text.strip() or question
+    except Exception as exc:
+        log.warning("query rewrite failed (%s); searching the original question only", exc)
+        return question
+
+
+def _generate(question: str, hits: list[Hit], language: str) -> str:
     excerpts = "\n\n".join(f"[{i + 1}] ({h.chunk.source})\n{h.chunk.text}" for i, h in enumerate(hits))
     prompt = (
         "You are the voice assistant for a heavy-equipment operator in the cab. Answer ONLY from "
@@ -171,8 +198,7 @@ def _generate(question: str, hits: list[Hit], language: str) -> str:
         f"like [1]. Reply in this language: {language}.\n\n"
         f"Manual excerpts:\n{excerpts}\n\nOperator's question: {question}"
     )
-    response = genai.GenerativeModel(GEMINI_MODEL).generate_content(prompt)
-    return response.text.strip()
+    return _gemini().generate_content(prompt).text.strip()
 
 
 def _extractive(hit: Hit, limit: int = 700) -> str:

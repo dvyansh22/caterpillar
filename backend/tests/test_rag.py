@@ -84,3 +84,30 @@ def test_voice_intents(transcript, intent):
 def test_voice_question_is_answered_from_the_manual():
     reply = client.post("/voice/nlu", json={"transcript": "how do I check the hydraulic oil level"}).json()
     assert "sight glass" in reply["reply"]
+
+
+def test_llm_path_searches_the_english_rewrite_and_cites_sources(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    monkeypatch.setattr(rag, "_english_query", lambda q: "how to check hydraulic oil level")
+    monkeypatch.setattr(rag, "_generate", lambda q, hits, lang: f"answer in {lang} [1]")
+    data = client.post("/rag/query", json={"question": "tel ka star kaise dekhu",
+                                           "language": "hi"}).json()
+    assert data["answer"] == "answer in hi [1]"
+    assert "hydraulic-system.md § Checking the hydraulic oil level" in data["sources"]
+
+
+def test_romanised_hindi_alone_is_not_matched_without_the_rewrite():
+    data = client.post("/rag/query", json={"question": "tel ka star kaise dekhu"}).json()
+    assert data["sources"] == []
+
+
+def test_gemini_failure_falls_back_to_quoting_the_manual(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "bad-key")
+    monkeypatch.setattr(rag, "_english_query", lambda q: q)
+
+    def boom(*_):
+        raise RuntimeError("quota exceeded")
+
+    monkeypatch.setattr(rag, "_generate", boom)
+    data = client.post("/rag/query", json={"question": "do I need to wear the seatbelt while idling"}).json()
+    assert data["answer"].startswith("From the manual")
