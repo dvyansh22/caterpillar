@@ -7,6 +7,7 @@ import 'core/nav.dart';
 import 'core/theme.dart';
 import 'core/tokens.dart';
 import 'features/auth/login_screen.dart';
+import 'features/dashboard/dashboard_screen.dart';
 import 'features/safety_gate/safety_gate_screen.dart';
 import 'features/shell/main_shell.dart';
 import 'features/welcome/welcome_screen.dart';
@@ -33,12 +34,17 @@ class SmartOperatorApp extends StatelessWidget {
       home: const _Root(),
       // The design targets a phone. Cap the width so it reads like a phone on wide
       // screens (web); harmless on real devices (<= this width).
-      builder: (context, child) => ColoredBox(
-        color: AppColors.bg,
-        child: Center(
-          // width capped to phone size, height fills the window (keeps Scaffold bounded).
-          child: SizedBox(width: 430, height: double.infinity, child: child),
-        ),
+      builder: (context, child) => Consumer(
+        builder: (context, ref, _) {
+          // Operator app is capped to phone width; the owner dashboard uses the full window.
+          final isDashboard = ref.watch(navProvider.select((s) => s.phase)) == AppPhase.dashboard;
+          return ColoredBox(
+            color: AppColors.bg,
+            child: isDashboard
+                ? child!
+                : Center(child: SizedBox(width: 430, height: double.infinity, child: child)),
+          );
+        },
       ),
     );
   }
@@ -55,6 +61,7 @@ class _Root extends ConsumerWidget {
       AppPhase.gate => const SafetyGateScreen(),
       AppPhase.welcome => const WelcomeScreen(),
       AppPhase.app => const MainShell(),
+      AppPhase.dashboard => const DashboardScreen(),
     };
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 220),

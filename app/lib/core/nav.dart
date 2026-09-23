@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Screen-flow / navigation state, mirroring the design prototype's view model.
-enum AppPhase { login, gate, welcome, app }
+enum AppPhase { login, gate, welcome, app, dashboard }
 
 enum AppTab { task, learn, profile, sos }
 
@@ -52,6 +52,7 @@ class NavController extends Notifier<NavState> {
   void toGate() => state = state.copyWith(phase: AppPhase.gate);
   void toWelcome() => state = state.copyWith(phase: AppPhase.welcome);
   void toApp() => state = state.copyWith(phase: AppPhase.app);
+  void toDashboard() => state = state.copyWith(phase: AppPhase.dashboard);
 
   void reset() => state = const NavState();
 

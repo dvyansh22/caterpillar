@@ -102,6 +102,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       Expanded(child: _demoCard('bala', 'Mining · HT012', selected == 'bala')),
                     ],
                   ),
+                  const SizedBox(height: 12),
+                  Center(
+                    child: TextButton.icon(
+                      onPressed: () => ref.read(navProvider.notifier).toDashboard(),
+                      icon: const Icon(Icons.dashboard_outlined, size: 18),
+                      label: const Text('Open owner dashboard'),
+                      style: TextButton.styleFrom(foregroundColor: AppColors.muted),
+                    ),
+                  ),
                 ],
               ),
             ),
