@@ -96,6 +96,7 @@ class ProfileScreen extends ConsumerWidget {
           width: double.infinity,
           child: OutlinedButton(
             onPressed: () {
+              ref.read(authServiceProvider).signOut();
               ref.read(appProvider.notifier).logout();
               ref.read(navProvider.notifier).reset();
             },

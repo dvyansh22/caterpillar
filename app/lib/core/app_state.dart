@@ -2,7 +2,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/mock_data.dart';
 import '../data/models.dart';
+import '../services/auth_service.dart';
+import '../services/firebase_auth_service.dart';
+import '../services/mock_auth_service.dart';
+import 'config.dart';
 import 'tokens.dart';
+
+/// Auth backend: mock by default, Firebase when built with USE_FIREBASE=true.
+final authServiceProvider =
+    Provider<AuthService>((ref) => kUseFirebase ? FirebaseAuthService() : MockAuthService());
 
 enum GateStatus { pending, busy, pass, fail }
 
@@ -11,6 +19,7 @@ enum GateStatus { pending, busy, pass, fail }
 class AppData {
   const AppData({
     this.username = 'arjun',
+    this.account,
     this.activeTaskId,
     this.activeStartMs,
     this.done = const {},
@@ -20,6 +29,7 @@ class AppData {
   });
 
   final String username;
+  final OperatorUser? account; // signed-in profile (from auth service)
   final String? activeTaskId;
   final int? activeStartMs;
   final Map<String, int> done; // taskId -> minutes
@@ -29,6 +39,7 @@ class AppData {
 
   AppData copyWith({
     String? username,
+    Object? account = _sentinel,
     Object? activeTaskId = _sentinel,
     Object? activeStartMs = _sentinel,
     Map<String, int>? done,
@@ -38,6 +49,7 @@ class AppData {
   }) {
     return AppData(
       username: username ?? this.username,
+      account: account == _sentinel ? this.account : account as OperatorUser?,
       activeTaskId: activeTaskId == _sentinel ? this.activeTaskId : activeTaskId as String?,
       activeStartMs: activeStartMs == _sentinel ? this.activeStartMs : activeStartMs as int?,
       done: done ?? this.done,
@@ -54,9 +66,11 @@ class AppController extends Notifier<AppData> {
   @override
   AppData build() => const AppData();
 
-  OperatorUser get user => kUsers[state.username] ?? kUsers['arjun']!;
+  OperatorUser get user => state.account ?? kUsers[state.username] ?? kUsers['arjun']!;
 
-  void setUsername(String username) => state = state.copyWith(username: username);
+  /// Records a successful sign-in (from [AuthService]).
+  void signInAs(OperatorUser account) =>
+      state = state.copyWith(username: account.username, account: account);
 
   void logout() => state = const AppData();
 
@@ -90,10 +104,10 @@ class AppController extends Notifier<AppData> {
 
 final appProvider = NotifierProvider<AppController, AppData>(AppController.new);
 
-/// The signed-in user (derived from the demo username).
+/// The signed-in user's profile (from the auth service, or the demo default).
 final currentUserProvider = Provider<OperatorUser>((ref) {
-  final username = ref.watch(appProvider.select((s) => s.username));
-  return kUsers[username] ?? kUsers['arjun']!;
+  final data = ref.watch(appProvider);
+  return data.account ?? kUsers[data.username] ?? kUsers['arjun']!;
 });
 
 /// Accent palette for the current vertical.

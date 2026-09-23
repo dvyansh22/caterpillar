@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/app_state.dart';
 import '../../core/nav.dart';
 import '../../core/tokens.dart';
-import '../../data/mock_data.dart';
+import '../../services/auth_service.dart';
 
 /// 01 Login (FR-AUTH-1/2). The account decides role + vertical.
 class LoginScreen extends ConsumerStatefulWidget {
@@ -33,18 +33,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
   }
 
-  void _signIn() {
-    final u = _user.text.trim().toLowerCase();
-    if (!kUsers.containsKey(u)) {
-      setState(() => _error = 'Unknown username. Use arjun or bala.');
-      return;
+  bool _busy = false;
+
+  Future<void> _signIn() async {
+    setState(() {
+      _busy = true;
+      _error = '';
+    });
+    try {
+      final user = await ref.read(authServiceProvider).signIn(_user.text, _pass.text);
+      ref.read(appProvider.notifier).signInAs(user);
+      ref.read(navProvider.notifier).toGate();
+    } on AuthException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } catch (_) {
+      if (mounted) setState(() => _error = 'Sign-in failed. Please try again.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
-    if (_pass.text.isEmpty) {
-      setState(() => _error = 'Enter your password.');
-      return;
-    }
-    ref.read(appProvider.notifier).setUsername(u);
-    ref.read(navProvider.notifier).toGate();
   }
 
   @override
@@ -105,14 +111,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 height: 56,
                 width: double.infinity,
                 child: FilledButton(
-                  onPressed: _signIn,
+                  onPressed: _busy ? null : _signIn,
                   style: FilledButton.styleFrom(
                     backgroundColor: AccentPalette.construction.base,
                     foregroundColor: AppColors.ink,
+                    disabledBackgroundColor: AccentPalette.construction.base,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
                     textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w500),
                   ),
-                  child: const Text('Sign in'),
+                  child: _busy
+                      ? const SizedBox(
+                          width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.ink))
+                      : const Text('Sign in'),
                 ),
               ),
             ),
@@ -132,14 +142,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       borderRadius: BorderRadius.circular(12),
       onTap: () => _pick(name),
       child: Container(
-        height: 64,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
+        constraints: const BoxConstraints(minHeight: 64),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           color: AppColors.card,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: selected ? AppColors.ink : AppColors.inputBorder, width: selected ? 2 : 1),
         ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

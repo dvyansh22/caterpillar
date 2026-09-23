@@ -1,6 +1,8 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'core/config.dart';
 import 'core/nav.dart';
 import 'core/theme.dart';
 import 'core/tokens.dart';
@@ -8,9 +10,14 @@ import 'features/auth/login_screen.dart';
 import 'features/safety_gate/safety_gate_screen.dart';
 import 'features/shell/main_shell.dart';
 import 'features/welcome/welcome_screen.dart';
+import 'firebase_options.dart';
 
-void main() {
-  // TODO(P4): WidgetsFlutterBinding.ensureInitialized(); await Firebase.initializeApp();
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Only touches Firebase when explicitly enabled (see docs/FIREBASE_SETUP.md).
+  if (kUseFirebase) {
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  }
   runApp(const ProviderScope(child: SmartOperatorApp()));
 }
 

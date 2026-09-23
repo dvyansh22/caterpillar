@@ -141,6 +141,7 @@ class _SafetyGateScreenState extends ConsumerState<SafetyGateScreen> {
                     ),
                     TextButton(
                       onPressed: () {
+                        ref.read(authServiceProvider).signOut();
                         ref.read(appProvider.notifier).logout();
                         ref.read(navProvider.notifier).reset();
                       },
