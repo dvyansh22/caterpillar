@@ -27,22 +27,19 @@ flutterfire configure          # pick the project; select android, ios, web
 ```
 This overwrites the placeholder `app/lib/firebase_options.dart` with your project's real values.
 
-## 3. Create the demo accounts
-In **Authentication → Users**, add:
-- `arjun@smartoperator.demo` (any password, e.g. `demo1234`)
-- `bala@smartoperator.demo`
-
-(The app expands a bare username to `<username>@smartoperator.demo`.)
-
-## 4. Add each operator's Firestore profile
-Create a document at **`users/{uid}`** (uid from the Authentication user) with these fields
-(see `docs/design/operator_app/README.md` for the exact demo values):
-```
-name, first, initial, opId, vertical ("construction"|"mining"),
-machineId, machine, site, siteShort, source, skill, gps, session, supervisor,
-flag (string), voice (array<string>),
-passport (array of { title, date, score })
-```
+## 3. Seed the demo accounts + profiles (automated)
+Instead of creating the two auth users and their `users/{uid}` docs by hand, run the seed script:
+1. Firebase console → **Project settings → Service accounts → Generate new private key** → save it as
+   `firebase/serviceAccount.json` (git-ignored).
+2. From the repo:
+   ```bash
+   cd firebase
+   npm install
+   npm run seed
+   ```
+This creates `arjun@smartoperator.demo` and `bala@smartoperator.demo` (password `demo1234`) and their
+Firestore `users/{uid}` profiles from `app/lib/data/mock_data.dart`. (The app expands a bare username
+to `<username>@smartoperator.demo`.)
 
 ## 5. Run with Firebase enabled
 ```bash

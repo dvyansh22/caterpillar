@@ -48,6 +48,7 @@ ar/*.sln
 .env*
 !.env.example
 firebase/functions/node_modules/
+firebase/node_modules/
 google-services.json
 GoogleService-Info.plist
 serviceAccount*.json
