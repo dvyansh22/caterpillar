@@ -1,7 +1,8 @@
 """Anomaly / unusual-behaviour scoring (P2) — shared by training and serving.
 
 Single source of truth for:
-- per-machine-type operating norms used by the Dataset A ground-truth rules (SRS §6.1),
+- applying the Dataset A ground-truth rules (SRS §6.1); the per-machine-type limits themselves come
+  from P1's `ml/generators/catalog.py`, the same numbers the generator labels with,
 - the feature builder (training in ml/training/ and inference in /ml/anomaly use the same code),
 - the human-readable rule checks that produce `reasons`,
 - loading the trained model bundle, with a rules-only fallback when no model file exists.
@@ -19,34 +20,14 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from app.core.ml_repo import ensure_ml_importable
 
-@dataclass(frozen=True)
-class MachineNorm:
-    speed_limit_kmh: float  # UnsafeOperation if MaxSpeed_kmh exceeds this
-    fuel_l_per_h: float  # typical burn while working
-    cycles_per_h: float  # typical LoadCycles per working hour
+if ensure_ml_importable():
+    from ml.generators import catalog
+else:  # ml/ not deployed next to backend/ (see ml_repo TODO): rules needing per-type limits are skipped
+    catalog = None
 
-    @property
-    def fuel_per_cycle(self) -> float:
-        return self.fuel_l_per_h / self.cycles_per_h
-
-
-# TODO(P1): the schema names "type speed limit" and "MachineType norm" but gives no values.
-# These are P2's working assumptions; replace with P1's generator constants once published.
-NORMS: dict[tuple[str, str], MachineNorm] = {
-    ("construction", "Excavator"): MachineNorm(6, 18, 12),
-    ("construction", "Wheel Loader"): MachineNorm(25, 15, 10),
-    ("construction", "Dozer"): MachineNorm(11, 25, 6),
-    ("construction", "Motor Grader"): MachineNorm(40, 14, 4),
-    ("construction", "Backhoe Loader"): MachineNorm(40, 8, 10),
-    ("mining", "Haul Truck"): MachineNorm(50, 90, 2.5),
-    ("mining", "Hydraulic Shovel"): MachineNorm(3, 150, 14),
-    ("mining", "Wheel Loader"): MachineNorm(30, 60, 8),
-    ("mining", "Dozer"): MachineNorm(11, 45, 6),
-    ("mining", "Drill"): MachineNorm(3, 30, 1),
-}
-
-# Ground-truth thresholds from SRS §6.1.
+# Ground-truth thresholds from SRS §6.1 (the fuel/overheat ones must equal catalog's; a test checks).
 IDLE_RATIO_LIMIT = 0.5
 HARSH_EVENTS_LIMIT = 4
 PROXIMITY_LIMIT = 3
@@ -64,7 +45,7 @@ NUMERIC_COLUMNS = [
 ]
 CATEGORICAL_COLUMNS = {
     "Vertical": ["construction", "mining"],
-    "MachineType": sorted({t for _, t in NORMS}),
+    "MachineType": sorted({t for types in catalog.MACHINE_TYPES.values() for t in types}) if catalog else [],
     "DataSource": ["Telematics", "Phone"],
     "SeatbeltStatus": ["Fastened", "Unfastened"],
     "FaultCode": ["HYD_PRESSURE_LOW", "ENGINE_OVERHEAT", "AIR_FILTER_RESTRICTED", "FUEL_FILTER_CLOGGED",
@@ -80,8 +61,16 @@ def canonical(column: str, value: Any) -> Any:
     return lookup.get(value.strip().lower(), value.strip())
 
 
-def norm_for(vertical: Any, machine_type: Any) -> MachineNorm | None:
-    return NORMS.get((str(vertical), str(machine_type)))
+def norm_for(vertical: Any, machine_type: Any):
+    """Per-type limits (`speed_limit_kmh`, `fuel_norm_l_per_cycle`) from P1's catalog, or None."""
+    return catalog.anomaly_limits(str(vertical), str(machine_type)) if catalog else None
+
+
+def fuel_ratio(fuel_used_l: Any, load_cycles: Any, vertical: Any, machine_type: Any) -> float | None:
+    """Fuel per cycle vs the type's norm; None for 0 cycles / no fuel data / unknown type (catalog rule)."""
+    if catalog is None:
+        return None
+    return catalog.fuel_ratio(as_float(fuel_used_l), as_float(load_cycles), str(vertical), str(machine_type))
 
 
 def build_features(df: pd.DataFrame) -> pd.DataFrame:
@@ -100,11 +89,12 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
         for v, t in zip(df.get("Vertical", [None] * len(df)), df.get("MachineType", [None] * len(df)))
     ]
     speed_limit = pd.Series([n.speed_limit_kmh if n else np.nan for n in norms], index=df.index)
-    fuel_norm = pd.Series([n.fuel_per_cycle if n else np.nan for n in norms], index=df.index)
+    fuel_norm = pd.Series([n.fuel_norm_l_per_cycle if n else np.nan for n in norms], index=df.index)
 
     out["idle_ratio"] = out["IdlingTime_min"] / out["SessionDuration_min"]
     out["speed_over_limit"] = out["MaxSpeed_kmh"] / speed_limit
-    out["fuel_ratio"] = out["FuelUsed_L"] / out["LoadCycles"].clip(lower=1) / fuel_norm
+    # Vectorised catalog.fuel_ratio: NaN when LoadCycles is 0 (an idling problem, not fuel waste).
+    out["fuel_ratio"] = out["FuelUsed_L"] / out["LoadCycles"].where(out["LoadCycles"] > 0) / fuel_norm
     return out
 
 
@@ -137,11 +127,9 @@ def check_rules(row: dict[str, Any]) -> dict[str, list[str]]:
     if prox is not None and prox >= PROXIMITY_LIMIT:
         add("UnsafeOperation", f"{prox:.0f} proximity warnings (worker/machine too close)")
 
-    fuel, cycles = as_float(row.get("FuelUsed_L")), as_float(row.get("LoadCycles"))
-    if fuel is not None and cycles is not None and norm:
-        ratio = fuel / max(cycles, 1) / norm.fuel_per_cycle
-        if ratio > FUEL_RATIO_LIMIT:
-            add("FuelAnomaly", f"Fuel per load cycle is {ratio:.1f}x the normal rate")
+    ratio = fuel_ratio(row.get("FuelUsed_L"), row.get("LoadCycles"), row.get("Vertical"), row.get("MachineType"))
+    if ratio is not None and ratio > FUEL_RATIO_LIMIT:
+        add("FuelAnomaly", f"Fuel per load cycle is {ratio:.1f}x the normal rate")
 
     temp = as_float(row.get("EngineTemp_C"))
     if temp is not None and temp > OVERHEAT_TEMP_C:

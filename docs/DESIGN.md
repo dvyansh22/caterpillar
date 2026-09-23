@@ -85,7 +85,7 @@ LLM companion reasoning, dashboard aggregation, tele-mentoring signaling.
 | Synthetic data | **Python (NumPy + Faker)** generator | "Assumed" fleet telematics history for ML + dashboard |
 | Tele-mentoring | **flutter_webrtc** + STUN/TURN + data channel | Remote expert annotates junior's live AR/video feed |
 | Maps/geo | **google_maps_flutter** + geofencing | Site map, task locations, proximity zones |
-| Weather | **OpenWeatherMap API** | Environmental input to task-time estimation |
+| Weather | **Open-Meteo API** (free, no key; live forecast, nothing stored) | Work conditions for task-time estimation: heat stress (WBGT), visibility, rain |
 | Backend runtime | **FastAPI (Python)** on **Cloud Run** | ML, RAG, LLM orchestration, sim, signaling |
 | Analytics/health | **Firebase Analytics + Crashlytics** | Usage, crash reporting |
 
@@ -122,7 +122,7 @@ LLM companion reasoning, dashboard aggregation, tele-mentoring signaling.
 - **Dashboard:** Firestore `tasks` collection filtered by operator + date; map view via
   google_maps_flutter.
 - **Estimation model:** XGBoost regressor, features = {machine type, task type, operator skill,
-  material/soil, weather (OpenWeather), historical durations}. Trained on the synthetic dataset;
+  material/soil, live weather + site location (Open-Meteo -> heat stress, visibility, wet ground; `ml/features/conditions.py`), historical durations}. Trained on the synthetic dataset;
   served at FastAPI `/ml/estimate`. Returns per-task ETA adapted to *this* operator, not a fleet mean.
 
 ### 4.5 Phone-as-Sensor Safety Suite *(required: seatbelt, proximity, incidents)*
@@ -672,7 +672,7 @@ full AR training vision.
 - **UI:** Flutter Material; bottom navbar Task | Learning Hub | SOS | Profile; vertical-adaptive theme.
 - **Hardware:** phone camera, mic, GPS, IMU, BLE; cab mount. No Cat hardware required.
 - **Software/APIs:** Firebase (Auth/Firestore/Storage/FCM/Functions); FastAPI (`/ml/*`, `/rag`,
-  `/voice`, `/sim`, `/signal`); LLM (Gemini/Claude); OpenWeatherMap; Google Maps; Unity via
+  `/voice`, `/sim`, `/signal`); LLM (Gemini/Claude); Open-Meteo; Google Maps; Unity via
   flutter_unity_widget.
 - **Comms:** HTTPS/REST + WebSocket (signaling); BLE advertise/scan + Nearby Connections (offline).
 

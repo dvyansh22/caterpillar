@@ -32,15 +32,24 @@ the patterns the models should learn.
   and add a `DataSource` indicator.
 - **Phone-derivable features** (always present): `IdlingTime_min`, `LoadCycles`, `SeatbeltStatus`,
   `HarshEvents`, `ProximityWarnings`, `FatigueScore`, `HoursSinceBreak`, speeds, `SessionDuration_min`.
-- **Approximate class balance:** SafetyAlert about 12%, Anomaly about 8%, MaintenanceDue about 15%.
+- **Approximate class balance:** SafetyAlert about 7%, Anomaly about 11%, MaintenanceDue about 15% (seed 42, default volume).
 - **`/ml/anomaly` request fields map to columns:** `idling_time_min → IdlingTime_min`,
   `load_cycles → LoadCycles`, `seatbelt_status → SeatbeltStatus`, `harsh_events → HarshEvents`,
   `speed_kmh → MaxSpeed_kmh`.
+- **Shared per-type limits (single source of truth):** `ml/generators/catalog.py`.
+  - `anomaly_limits(vertical, machine_type)` returns the speed limit and fuel norm.
+  - `fuel_ratio(fuel_used_l, load_cycles, vertical, machine_type)` returns `None` for 0 cycles, no fuel data or an unknown type.
+  - `FUEL_RATIO_LIMIT`, `OVERHEAT_TEMP_C` and `MAINTENANCE_TEMP_C` are the thresholds.
+
+  The generator labels with exactly these, so `/ml/anomaly` must use them too, or its rules disagree
+  with the labels. The backend can import `ml` via `backend/app/core/ml_repo.ensure_ml_importable()`.
 - **Split by `MachineID`** or by time, not randomly. Otherwise sessions from the same machine leak between train and test.
 
 ```python
 import pandas as pd
-df = pd.read_csv("ml/data/synthetic/telematics.csv", parse_dates=["Timestamp"])
+# keep_default_na=False: otherwise pandas reads AnomalyType "None" as a missing value
+df = pd.read_csv("ml/data/synthetic/telematics.csv", parse_dates=["Timestamp"],
+                 keep_default_na=False, na_values=[""])
 y = (df["SafetyAlertTriggered"] == "Yes").astype(int)
 ```
 

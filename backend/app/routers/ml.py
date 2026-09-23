@@ -1,19 +1,48 @@
 """ML endpoints — task-time estimation (P1) and anomaly/behavior (P2).
 
-Stub responses establish the API contract (§20.2). Replace with real model inference in Phase 1+.
+Stub responses established the API contract (§20.2). /ml/estimate serves the trained XGBoost model
+(ml/models/task_time_v1.joblib); /ml/anomaly, /ml/safety and /ml/maintenance serve P2's models,
+with a rules-only fallback when a model file is missing.
 """
 
-from fastapi import APIRouter
+from datetime import datetime
+from functools import lru_cache
+
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.anomaly import canonical, score_session
+from app.core.ml_repo import ensure_ml_importable
 from app.core.risk import score_maintenance, score_safety
 
 router = APIRouter(prefix="/ml", tags=["ml"])
 
 
+@lru_cache(maxsize=1)
+def get_task_time_estimator():
+    """Load the task-time model once per process; None if the `ml` package isn't available."""
+    if not ensure_ml_importable():
+        return None
+    from ml.serving.task_time import TaskTimeEstimator
+
+    return TaskTimeEstimator.load()
+
+
 # ---- /ml/estimate (P1) ----
 class EstimateRequest(BaseModel):
+    """The first seven fields are the original contract. Everything after is optional (v1.1):
+    give a site (or lat/lon) and start time to use live weather, or send weather numbers yourself."""
+
+    model_config = ConfigDict(json_schema_extra={"examples": [
+        {"task_type": "Earth Excavation", "weather": "Sunny", "operator_skill": "Beginner",
+         "machine_age_yrs": 9, "vertical": "construction", "site_id": "SITE01", "suggest_start": True},
+        {"task_type": "Earth Excavation", "weather": "Sunny", "operator_skill": "Beginner",
+         "machine_age_yrs": 9, "site_id": "SITE01", "start_time": "2026-05-14T14:00",
+         "temperature_c": 37, "humidity_pct": 40},
+        {"task_type": "Load-Haul-Dump", "weather": "Sunny", "operator_skill": "Expert",
+         "machine_age_yrs": 4, "vertical": "mining", "site_id": "SITE06", "visibility_m": 150},
+    ]})
+
     task_type: str
     weather: str
     operator_skill: str
@@ -22,18 +51,89 @@ class EstimateRequest(BaseModel):
     # optional expanded features
     material_type: str | None = None
     haul_distance_m: float | None = None
+    # optional: where and when (live Open-Meteo forecast; site-typical weather when offline)
+    site_id: str | None = Field(None, description="SITE01-SITE07 (see ml/data/synthetic/sites.csv)")
+    latitude: float | None = Field(None, ge=-90, le=90)
+    longitude: float | None = Field(None, ge=-180, le=180)
+    start_time: datetime | None = Field(None, description="ISO time; no timezone = site local time. Default: now")
+    # optional: weather the app already has (overrides the forecast)
+    temperature_c: float | None = Field(None, ge=-40, le=60)
+    humidity_pct: float | None = Field(None, ge=0, le=100)
+    wind_speed_kmh: float | None = Field(None, ge=0, le=200)
+    visibility_m: float | None = Field(None, ge=0, le=50000)
+    precip_mm_h: float | None = Field(None, ge=0, le=200)
+    suggest_start: bool = Field(False, description="Also return the best start time in the next 24 h")
+
+
+class EtaFactor(BaseModel):
+    name: str
+    minutes: float
+    detail: str
+
+
+class WorkConditions(BaseModel):
+    start_time: str | None = None
+    temperature_c: float
+    humidity_pct: float
+    wind_speed_kmh: float
+    visibility_m: float
+    precip_mm_h: float
+    weather: str
+    wbgt_c: float
+    work_fraction: float
+
+
+class BestStart(BaseModel):
+    start_time: str
+    estimated_minutes: float
+    minutes_saved: float
+    reason: str
 
 
 class EstimateResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=(), json_schema_extra={"examples": [{
+        # real output for the second request example (Pune, 37 °C / 40 % RH at 14:00)
+        "estimated_minutes": 177.5, "baseline_minutes": 55.0, "model_version": "xgb-v2",
+        "weather_source": "client",
+        "conditions": {"start_time": "2026-05-14T14:00", "temperature_c": 37.0, "humidity_pct": 40.0,
+                       "wind_speed_kmh": 12.0, "visibility_m": 15000.0, "precip_mm_h": 0.0, "weather": "Sunny",
+                       "wbgt_c": 29.4, "work_fraction": 0.5},
+        "factors": [{"name": "operator, machine & terrain", "minutes": 33.7, "detail": "Beginner operator, 9-yr machine"},
+                    {"name": "heat breaks", "minutes": 88.8, "detail": "WBGT 29.4 °C -> 50% of each hour workable (open cab)"}],
+        "advisories": ["Heat stress: drink water every 15-20 min and take shaded rest breaks"],
+        "best_start": None,
+    }]})
+
     estimated_minutes: float
     baseline_minutes: float | None = None
     model_version: str = "stub-0"
+    # optional additions (v1.1); older clients can ignore them
+    weather_source: str | None = None  # open-meteo | site-typical | client | label-only
+    conditions: WorkConditions | None = None
+    factors: list[EtaFactor] = []  # minutes added/removed vs baseline_minutes; they sum to the difference
+    advisories: list[str] = []
+    best_start: BestStart | None = None
 
 
 @router.post("/estimate", response_model=EstimateResponse)
 def estimate(req: EstimateRequest) -> EstimateResponse:
-    # TODO(P1): load XGBoost model and predict ActualTime.
-    return EstimateResponse(estimated_minutes=45.0, baseline_minutes=45.0)
+    estimator = get_task_time_estimator()
+    if estimator is None:  # ml/ not deployed alongside the backend: keep the contract-accurate stub
+        return EstimateResponse(estimated_minutes=45.0, baseline_minutes=45.0)
+    try:
+        result = estimator.estimate(**req.model_dump())
+    except ValueError as exc:  # unknown task_type / weather / skill / vertical / site
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return EstimateResponse(
+        estimated_minutes=result.estimated_minutes,
+        baseline_minutes=result.baseline_minutes,
+        model_version=result.model_version,
+        weather_source=result.weather_source,
+        conditions=result.conditions or None,
+        factors=result.factors,
+        advisories=result.advisories,
+        best_start=result.best_start,
+    )
 
 
 # ---- /ml/anomaly (P2) ----

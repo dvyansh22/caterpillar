@@ -13,6 +13,7 @@ xgboost==2.1.1
 numpy==2.1.1
 pandas==2.2.2
 joblib==1.4.2
+Faker==28.4.1             # /sim reuses ml/generators
 
 # RAG
 qdrant-client==1.11.2

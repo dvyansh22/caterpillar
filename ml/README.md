@@ -38,22 +38,43 @@ The generator writes `telematics`, `tasks`, `sites`, `machines`, `operators`, `t
 | Predictive maintenance | P2 | Classifier / regressor |
 | Seatbelt / fatigue / acoustic | P2 | TFLite (on-device) |
 
-## Run
+## Run (Python 3.12, from the repo root)
 ```
-pip install -r requirements.txt
-python generators/generate.py --dataset tasks --vertical construction --rows 2000
+py -3.12 -m venv .venv && .venv\Scripts\activate      # macOS/Linux: python3.12 -m venv .venv && source .venv/bin/activate
+pip install -r ml/requirements.txt
+python ml/generators/generate.py                     # all tables, both verticals -> ml/data/synthetic/
+python ml/generators/generate.py --dataset tasks --vertical mining --rows 2000 --seed 7
+python ml/training/train_task_time.py                # -> ml/models/task_time_v1.joblib + .metrics.json
+python -m pytest ml/tests backend/tests
 ```
+- The generator validates every table against `data/schemas/*.schema.json` before writing.
+- `generators/catalog.py` holds the domain constants (enums, machine specs, task standards, baseline formula).
+- `serving/task_time.py` is shared by training and `/ml/estimate`, so features are built identically.
+- The model predicts log(Actual / Estimated). Held-out-operator results are in `models/task_time_v1.metrics.json`.
+- **Weather and conditions (no stored weather):**
+  - `features/weather.py` simulates task weather from a few climate numbers per site (`catalog.SITE_CLIMATE`) and fetches live Open-Meteo forecasts at serving time.
+  - `features/conditions.py` turns weather into work effects: heat-stress breaks (WBGT), visibility, wet ground.
+  - The same code is used by the generator, training and `/ml/estimate`.
+
+### Demo: weather-aware ETA
+Start the backend (`cd backend && uvicorn app.main:app --reload`), open http://127.0.0.1:8000/docs → `POST /ml/estimate` → Try it out:
+- **Live weather + best start:** `{"task_type": "Earth Excavation", "weather": "Sunny", "operator_skill": "Beginner", "machine_age_yrs": 9, "site_id": "SITE01", "suggest_start": true}`
+- **Heat (repeatable):** add `"temperature_c": 37, "humidity_pct": 40` to show "heat breaks" and a hydration advisory.
+  Use `"machine_age_yrs": 4` to show an AC cab softening it.
+- **Fog on a mine haul:** `{"task_type": "Load-Haul-Dump", "vertical": "mining", "weather": "Sunny", "operator_skill": "Expert", "machine_age_yrs": 4, "site_id": "SITE06", "visibility_m": 150}`
+- **No internet:** still works, and `weather_source` becomes `site-typical`.
 
 ### P2 — anomaly, safety-alert and maintenance models (`/ml/anomaly`, `/ml/safety`, `/ml/maintenance`)
-Until P1's generator lands, `training/p2_dev_data.py` writes a stand-in Dataset A that follows the
-schema v1.0 rules. Features, thresholds and per-machine-type norms live in
-`backend/app/core/anomaly.py`, shared by training and serving. The per-type speed limits and fuel norms
-there are P2 assumptions, marked `TODO(P1)`.
+Train on P1's `data/synthetic/telematics.csv`. `training/p2_dev_data.py` is an older stand-in Dataset A,
+kept for quick experiments. Features and rule checks live in `backend/app/core/anomaly.py`, shared by
+training and serving. The per-machine-type speed limits and fuel norms come from P1's
+`generators/catalog.py` (`anomaly_limits`, `fuel_ratio`), the same numbers the generator labels with.
+`backend/tests/test_shared_limits.py` fails if the two ever disagree.
 ```
-python training/p2_dev_data.py --rows 20000                  # -> data/synthetic/telematics_p2dev.csv
-python training/anomaly.py --data data/synthetic/telematics_p2dev.csv   # -> models/anomaly.joblib
-python training/risk.py --data data/synthetic/telematics_p2dev.csv      # -> models/{safety,maintenance}.joblib
-python training/anomaly.py && python training/risk.py        # once P1's telematics.csv exists
+python generators/generate.py                                # -> data/synthetic/telematics.csv (P1)
+python training/anomaly.py                                   # -> models/anomaly.joblib
+python training/risk.py                                      # -> models/{safety,maintenance}.joblib
+python training/p2_dev_data.py --rows 20000                  # optional stand-in -> telematics_p2dev.csv
 ```
 The backend loads `ml/models/{anomaly,safety,maintenance}.joblib` (override with
 `ANOMALY_MODEL_PATH`, `SAFETY_MODEL_PATH`, `MAINTENANCE_MODEL_PATH`). If a file is missing, that

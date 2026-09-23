@@ -1,0 +1,155 @@
+{
+  "model_version": "xgb-v2",
+  "schema_version": "1.1",
+  "trained_at": "2026-09-23T17:12:03+00:00",
+  "data": {
+    "file": "tasks.csv",
+    "rows": 20000,
+    "train_rows": 16000,
+    "test_rows": 4000,
+    "split": "GroupShuffleSplit by OperatorID, test_size=0.2, seed=42"
+  },
+  "features": [
+    "Vertical",
+    "TaskType",
+    "MachineType",
+    "MaterialType",
+    "Weather",
+    "OperatorSkill",
+    "TimeOfDay",
+    "MachineAge_yrs",
+    "TerrainSlope_deg",
+    "Temperature_C",
+    "WindSpeed_kmh",
+    "OperatorExpHours",
+    "LoadVolume_m3",
+    "HaulDistance_m",
+    "EstimatedTime_min",
+    "Humidity_pct",
+    "Visibility_m",
+    "Precip_mm_h",
+    "StartHour",
+    "WBGT_C",
+    "HeatMultiplier",
+    "VisibilityMultiplier",
+    "WetMultiplier"
+  ],
+  "target": "log(ActualTime_min / EstimatedTime_min); ETA = EstimatedTime_min * exp(prediction)",
+  "holdout_metrics": {
+    "overall": {
+      "rows": 4000,
+      "model": {
+        "mae_min": 5.52,
+        "rmse_min": 11.2,
+        "mape_pct": 4.26
+      },
+      "baseline": {
+        "mae_min": 28.15,
+        "rmse_min": 58.93,
+        "mape_pct": 19.75
+      },
+      "mae_improvement_pct": 80.4
+    },
+    "by_vertical": {
+      "construction": {
+        "rows": 1990,
+        "model": {
+          "mae_min": 3.19,
+          "rmse_min": 4.83,
+          "mape_pct": 4.26
+        },
+        "baseline": {
+          "mae_min": 15.98,
+          "rmse_min": 23.89,
+          "mape_pct": 19.5
+        },
+        "mae_improvement_pct": 80.0
+      },
+      "mining": {
+        "rows": 2010,
+        "model": {
+          "mae_min": 7.82,
+          "rmse_min": 15.04,
+          "mape_pct": 4.27
+        },
+        "baseline": {
+          "mae_min": 40.21,
+          "rmse_min": 79.66,
+          "mape_pct": 20.0
+        },
+        "mae_improvement_pct": 80.6
+      }
+    },
+    "by_skill": {
+      "Beginner": {
+        "rows": 2230,
+        "model": {
+          "mae_min": 5.67,
+          "rmse_min": 10.53,
+          "mape_pct": 4.27
+        },
+        "baseline": {
+          "mae_min": 37.55,
+          "rmse_min": 67.16,
+          "mape_pct": 26.39
+        },
+        "mae_improvement_pct": 84.9
+      },
+      "Expert": {
+        "rows": 394,
+        "model": {
+          "mae_min": 4.19,
+          "rmse_min": 6.78,
+          "mape_pct": 4.22
+        },
+        "baseline": {
+          "mae_min": 9.55,
+          "rmse_min": 14.57,
+          "mape_pct": 9.11
+        },
+        "mae_improvement_pct": 56.1
+      },
+      "Intermediate": {
+        "rows": 1376,
+        "model": {
+          "mae_min": 5.66,
+          "rmse_min": 13.1,
+          "mape_pct": 4.27
+        },
+        "baseline": {
+          "mae_min": 18.26,
+          "rmse_min": 52.19,
+          "mape_pct": 12.04
+        },
+        "mae_improvement_pct": 69.0
+      }
+    },
+    "ablation_weather_label_only": {
+      "all_tasks": {
+        "conditions_model": {
+          "mae_min": 5.52,
+          "rmse_min": 11.2,
+          "mape_pct": 4.26
+        },
+        "label_only_model": {
+          "mae_min": 9.38,
+          "rmse_min": 36.09,
+          "mape_pct": 6.2
+        }
+      },
+      "tasks_with_heat_visibility_or_rain": {
+        "rows": 797,
+        "conditions_model": {
+          "mae_min": 7.75,
+          "rmse_min": 19.08,
+          "mape_pct": 4.7
+        },
+        "label_only_model": {
+          "mae_min": 22.98,
+          "rmse_min": 77.72,
+          "mape_pct": 11.32
+        }
+      }
+    }
+  }
+}
