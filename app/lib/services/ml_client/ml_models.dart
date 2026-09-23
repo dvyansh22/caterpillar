@@ -147,6 +147,62 @@ class EstimateResponse {
 }
 
 // ---------------------------------------------------------------------------
+// /ml/fleet — owner dashboard fleet snapshot (model-labeled telematics)
+// ---------------------------------------------------------------------------
+
+class FleetMachine {
+  const FleetMachine({
+    required this.id,
+    required this.type,
+    required this.operator,
+    required this.status, // in_use | idle | offline
+    required this.phoneFed,
+    required this.alerts,
+  });
+
+  factory FleetMachine.fromJson(Map<String, dynamic> j) => FleetMachine(
+    id: j['id'] as String? ?? '',
+    type: j['type'] as String? ?? '',
+    operator: j['operator'] as String? ?? '',
+    status: j['status'] as String? ?? 'in_use',
+    phoneFed: j['phone_fed'] as bool? ?? false,
+    alerts: (j['alerts'] as num?)?.toInt() ?? 0,
+  );
+
+  final String id, type, operator, status;
+  final bool phoneFed;
+  final int alerts;
+}
+
+class FleetSnapshot {
+  const FleetSnapshot({
+    required this.machines,
+    required this.idleWeek,
+    required this.active,
+    required this.safetyAlerts,
+    required this.anomalies,
+    required this.maintenanceDue,
+    required this.phoneFed,
+  });
+
+  factory FleetSnapshot.fromJson(Map<String, dynamic> j) => FleetSnapshot(
+    machines: ((j['machines'] as List?) ?? const [])
+        .map((e) => FleetMachine.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    idleWeek: ((j['idle_week'] as List?) ?? const []).map((e) => (e as num).toInt()).toList(),
+    active: (j['active'] as num?)?.toInt() ?? 0,
+    safetyAlerts: (j['safety_alerts'] as num?)?.toInt() ?? 0,
+    anomalies: (j['anomalies'] as num?)?.toInt() ?? 0,
+    maintenanceDue: (j['maintenance_due'] as num?)?.toInt() ?? 0,
+    phoneFed: (j['phone_fed'] as num?)?.toInt() ?? 0,
+  );
+
+  final List<FleetMachine> machines;
+  final List<int> idleWeek;
+  final int active, safetyAlerts, anomalies, maintenanceDue, phoneFed;
+}
+
+// ---------------------------------------------------------------------------
 // /ml/anomaly — Behavior / anomaly scoring
 // ---------------------------------------------------------------------------
 

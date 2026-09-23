@@ -51,8 +51,52 @@ class FirebaseDataRepository implements DataRepository {
       'lessonId': lessonId,
       'title': title,
       'score': score,
+      'vertical': user.vertical == Vertical.mining ? 'mining' : 'construction',
       'date': 'Today',
       'ts': FieldValue.serverTimestamp(),
     });
   }
+
+  @override
+  Future<List<IncidentRecord>> readIncidents(Vertical vertical) async {
+    final vs = vertical == Vertical.mining ? 'mining' : 'construction';
+    // Filter by vertical only (no orderBy, so no composite index needed); sort client-side.
+    final snap = await _db.collection('incidents').where('vertical', isEqualTo: vs).get();
+    final docs = snap.docs.toList()
+      ..sort((a, b) {
+        final ta = a.data()['ts'], tb = b.data()['ts'];
+        if (ta is Timestamp && tb is Timestamp) return tb.compareTo(ta); // newest first
+        return 0;
+      });
+    return docs.take(25).map((d) {
+      final m = d.data();
+      final ts = m['ts'];
+      final time = ts is Timestamp ? _hhmm(ts.toDate()) : (m['timeIntoTask'] ?? '') as String;
+      final sev = (m['severity'] ?? 'observation') as String;
+      return IncidentRecord(
+        text: (m['text'] ?? '') as String,
+        machineId: (m['machineId'] ?? '') as String,
+        time: time,
+        severity: sev,
+        operatorId: (m['operatorId'] ?? '') as String,
+      );
+    }).toList();
+  }
+
+  @override
+  Future<List<TrainingRecord>> readTraining(Vertical vertical) async {
+    final snap = await _db.collection('training').get(); // not all records are vertical-tagged
+    return snap.docs.map((d) {
+      final m = d.data();
+      return TrainingRecord(
+        operatorId: (m['operatorId'] ?? '') as String,
+        lessonId: (m['lessonId'] ?? d.id) as String,
+        title: (m['title'] ?? '') as String,
+        score: (m['score'] as num?)?.toInt() ?? 0,
+      );
+    }).toList();
+  }
+
+  static String _hhmm(DateTime d) =>
+      '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
 }

@@ -1,9 +1,13 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/app_state.dart';
 import '../../core/nav.dart';
 import '../../core/tokens.dart';
 import '../../data/models.dart';
+import '../../services/ml_client/ml_providers.dart';
 
 // ---------------------------------------------------------------------------
 // Owner / fleet dashboard (web). Deliberately minimal — matches the app theme.
@@ -116,6 +120,63 @@ const _mining = _Site(
   ],
 );
 
+/// Live dashboard data: fleet + idle from the model backend (`/ml/fleet`),
+/// incidents + training from Firestore. Falls back to the seed site for any
+/// piece the backend/Firestore can't provide, so the view is never blank.
+final dashSiteProvider = FutureProvider.autoDispose.family<_Site, Vertical>((ref, vertical) async {
+  final vs = vertical == Vertical.mining ? 'mining' : 'construction';
+  final seed = vertical == Vertical.mining ? _mining : _construction;
+
+  final repo = ref.read(dataRepositoryProvider);
+  final fleet = await ref.read(mlClientProvider).getFleet(vs); // null if backend down
+  // Firestore reads can be denied (e.g. dashboard opened without auth); fall back
+  // to seed per-source instead of failing the whole load.
+  List<IncidentRecord> incidents = const [];
+  List<TrainingRecord> training = const [];
+  try {
+    incidents = await repo.readIncidents(vertical);
+  } catch (_) {}
+  try {
+    training = await repo.readTraining(vertical);
+  } catch (_) {}
+
+  final machines = fleet == null
+      ? seed.machines
+      : [
+          for (final m in fleet.machines)
+            Machine(m.id, m.type, m.operator, _status(m.status), m.phoneFed, m.alerts),
+        ];
+  final idleWeek = (fleet != null && fleet.idleWeek.length == 7) ? fleet.idleWeek : seed.idleWeek;
+  final incidentRows = incidents.isEmpty
+      ? seed.incidents
+      : [for (final i in incidents) IncidentRow(i.severity, i.text, i.machineId, i.time)];
+  final trainingRows = training.isEmpty ? seed.training : _aggregateTraining(training);
+
+  return _Site(seed.name, machines, incidentRows, idleWeek, trainingRows);
+});
+
+MStatus _status(String s) => switch (s) {
+      'idle' => MStatus.idle,
+      'offline' => MStatus.offline,
+      _ => MStatus.inUse,
+    };
+
+List<TrainingRow> _aggregateTraining(List<TrainingRecord> recs) {
+  final byOp = <String, List<TrainingRecord>>{};
+  for (final r in recs) {
+    byOp.putIfAbsent(r.operatorId, () => []).add(r);
+  }
+  return [
+    for (final e in byOp.entries)
+      TrainingRow(
+        e.key,
+        e.value.length,
+        math.max(e.value.length, 3), // assume a 3-module catalog
+        (e.value.map((r) => r.score).reduce((a, b) => a + b) / e.value.length).round(),
+      ),
+  ];
+}
+
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
@@ -124,12 +185,14 @@ class DashboardScreen extends ConsumerWidget {
     final vertical = ref.watch(dashVerticalProvider);
     final tab = ref.watch(dashTabProvider);
     final acc = vertical.accent;
-    final site = vertical == Vertical.mining ? _mining : _construction;
+    final siteAsync = ref.watch(dashSiteProvider(vertical));
+    final live = siteAsync.hasValue;
+    final site = siteAsync.asData?.value ?? (vertical == Vertical.mining ? _mining : _construction);
 
     return Scaffold(
       body: Column(
         children: [
-          _TopBar(vertical: vertical, tab: tab, acc: acc),
+          _TopBar(vertical: vertical, tab: tab, acc: acc, live: live),
           Expanded(
             child: SingleChildScrollView(
               child: Center(
@@ -155,10 +218,11 @@ class DashboardScreen extends ConsumerWidget {
 }
 
 class _TopBar extends ConsumerWidget {
-  const _TopBar({required this.vertical, required this.tab, required this.acc});
+  const _TopBar({required this.vertical, required this.tab, required this.acc, required this.live});
   final Vertical vertical;
   final DashTab tab;
   final AccentPalette acc;
+  final bool live;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -198,7 +262,31 @@ class _TopBar extends ConsumerWidget {
           ),
           const SizedBox(width: 10),
           const Text('Smart Operator · Fleet', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.ink)),
-          const SizedBox(width: 24),
+          const SizedBox(width: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: live ? AppColors.successBg : AppColors.surface2,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                    width: 7,
+                    height: 7,
+                    decoration: BoxDecoration(
+                        color: live ? AppColors.successInk : AppColors.muted2, shape: BoxShape.circle)),
+                const SizedBox(width: 5),
+                Text(live ? 'Live' : 'Loading',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: live ? AppColors.successInk : AppColors.muted)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 20),
           tabBtn(DashTab.overview, 'Overview'),
           tabBtn(DashTab.fleet, 'Fleet'),
           tabBtn(DashTab.incidents, 'Incidents'),

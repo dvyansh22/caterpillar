@@ -242,3 +242,78 @@ def safety(req: SessionRequest) -> RiskResponse:
 def maintenance(req: SessionRequest) -> RiskResponse:
     """Does the machine need maintenance? (target MaintenanceDue)"""
     return RiskResponse(**vars(score_maintenance(req.to_session())))
+
+
+# ---- /ml/fleet (owner dashboard: model-labeled fleet snapshot) ----
+class FleetMachine(BaseModel):
+    id: str
+    type: str
+    operator: str
+    status: str  # in_use | idle | offline
+    phone_fed: bool  # phone sensors (no telematics hardware)
+    alerts: int
+
+
+class FleetResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+    vertical: str
+    machines: list[FleetMachine]
+    idle_week: list[int]  # avg idle % by weekday (Mon..Sun)
+    active: int
+    safety_alerts: int
+    anomalies: int
+    maintenance_due: int
+    phone_fed: int
+
+
+@router.get("/fleet", response_model=FleetResponse)
+def fleet(vertical: str = "construction") -> FleetResponse:
+    """A fleet snapshot for the owner dashboard, aggregated from the generated,
+    model-labeled telematics (SafetyAlert/Anomaly/MaintenanceDue, idling, phone vs
+    telematics source). Seeded so the snapshot is stable across refreshes."""
+    if vertical not in ("construction", "mining"):
+        raise HTTPException(status_code=422, detail="vertical must be 'construction' or 'mining'")
+    if not ensure_ml_importable():
+        raise HTTPException(status_code=503, detail="ml/ generator package is not deployed")
+    import pandas as pd
+    from ml.generators.generate import generate_telematics
+
+    df = generate_telematics(vertical, 300, seed=7)  # stable one-shift fleet snapshot
+    yes = lambda s: s.astype(str).str.lower().eq("yes")
+    df = df.assign(_idle=(df["IdlingTime_min"] / df["SessionDuration_min"]).clip(lower=0, upper=1))
+
+    rows = []
+    for mid, g in df.groupby("MachineID"):
+        rows.append({
+            "id": str(mid),
+            "type": str(g["MachineType"].iat[0]),
+            "operator": str(g["OperatorID"].mode().iat[0]) if not g["OperatorID"].isna().all() else "",
+            "idle": float(g["_idle"].mean()),
+            "sessions": int(len(g)),
+            "phone_fed": bool(g["DataSource"].astype(str).str.lower().eq("phone").mean() >= 0.5),
+            "alerts": int(yes(g["SafetyAlertTriggered"]).sum() + yes(g["AnomalyFlag"]).sum()),
+        })
+    rows.sort(key=lambda m: (-m["alerts"], -m["sessions"]))
+    rows = rows[:9]  # a readable fleet for the table
+    least = min((m["sessions"] for m in rows), default=0)
+    for m in rows:
+        if m["sessions"] == least and m["alerts"] == 0:
+            m["status"] = "offline"
+        else:
+            m["status"] = "idle" if m["idle"] > 0.45 else "in_use"
+
+    dow = pd.to_datetime(df["Timestamp"]).dt.dayofweek
+    idle_by_dow = df["_idle"].groupby(dow).mean().reindex(range(7)).fillna(0.0)
+    idle_week = [int(round(v * 100)) for v in idle_by_dow.tolist()]
+
+    return FleetResponse(
+        vertical=vertical,
+        machines=[FleetMachine(id=m["id"], type=m["type"], operator=m["operator"],
+                               status=m["status"], phone_fed=m["phone_fed"], alerts=m["alerts"]) for m in rows],
+        idle_week=idle_week,
+        active=sum(1 for m in rows if m["status"] != "offline"),
+        safety_alerts=sum(m["alerts"] for m in rows),
+        anomalies=int(yes(df["AnomalyFlag"]).sum()),
+        maintenance_due=int(yes(df["MaintenanceDue"]).sum()),
+        phone_fed=sum(1 for m in rows if m["phone_fed"]),
+    )

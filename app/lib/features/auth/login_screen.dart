@@ -53,6 +53,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  /// Owner dashboard: sign in (best-effort) first so its Firestore reads
+  /// (incidents/training) are authorized; falls back to seed data if sign-in
+  /// fails. The fleet stats come from the ML backend regardless.
+  Future<void> _openDashboard() async {
+    try {
+      final user = await ref.read(authServiceProvider).signIn(_user.text, _pass.text);
+      await ref.read(appProvider.notifier).startSession(user);
+    } catch (_) {
+      // ignore: the dashboard still opens with seed fallback for denied reads
+    }
+    if (mounted) ref.read(navProvider.notifier).toDashboard();
+  }
+
   @override
   Widget build(BuildContext context) {
     final selected = _user.text.trim().toLowerCase();
@@ -105,7 +118,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   const SizedBox(height: 12),
                   Center(
                     child: TextButton.icon(
-                      onPressed: () => ref.read(navProvider.notifier).toDashboard(),
+                      onPressed: _openDashboard,
                       icon: const Icon(Icons.dashboard_outlined, size: 18),
                       label: const Text('Open owner dashboard'),
                       style: TextButton.styleFrom(foregroundColor: AppColors.muted),

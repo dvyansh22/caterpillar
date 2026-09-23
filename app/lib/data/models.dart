@@ -106,3 +106,33 @@ class VoiceLog {
   final String time;
   final String sync;
 }
+
+/// A logged incident/observation (Firestore `incidents`), read for the owner dashboard.
+class IncidentRecord {
+  const IncidentRecord({
+    required this.text,
+    required this.machineId,
+    required this.time,
+    this.severity = 'observation',
+    this.operatorId = '',
+  });
+  final String text;
+  final String machineId;
+  final String time;
+  final String severity; // safety | anomaly | observation
+  final String operatorId;
+}
+
+/// A completed-lesson record (Firestore `training`), read for the owner dashboard.
+class TrainingRecord {
+  const TrainingRecord({
+    required this.operatorId,
+    required this.lessonId,
+    required this.title,
+    required this.score,
+  });
+  final String operatorId;
+  final String lessonId;
+  final String title;
+  final int score;
+}
