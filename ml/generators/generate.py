@@ -28,6 +28,8 @@ from faker import Faker
 if __package__ in (None, ""):  # run as a script: make `ml` importable
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from ml.features import conditions  # noqa: E402
+from ml.features.weather import sample_task_weather  # noqa: E402
 from ml.generators import catalog as C  # noqa: E402
 from ml.generators.schema import column_names, validate  # noqa: E402
 
@@ -42,12 +44,9 @@ SKILL_WEIGHTS = (0.30, 0.45, 0.25)  # Beginner, Intermediate, Expert
 SITE_MEAN_TEMP = {s[0]: s[5] for s in C.SITES}
 EXP_HOURS = {"Beginner": (200, 2000), "Intermediate": (2000, 8000), "Expert": (8000, 20000)}
 
-# Dataset B multipliers (SRS §6.2).
+# Dataset B multipliers (SRS §6.2). Weather effects live in ml/features/conditions.py.
 SKILL_FACTOR = {"Expert": (0.88, 0.97), "Intermediate": (1.00, 1.12), "Beginner": (1.15, 1.35)}
-WEATHER_FACTOR = {"Sunny": (1.0, 1.0), "Cloudy": (1.0, 1.0), "Rainy": (1.10, 1.20), "Windy": (1.05, 1.10), "Dusty": (1.05, 1.05)}
-WEATHER_P = {"construction": (0.45, 0.30, 0.13, 0.08, 0.04), "mining": (0.40, 0.20, 0.08, 0.12, 0.20)}
 TIME_OF_DAY_P = {"construction": (0.45, 0.35, 0.12, 0.08), "mining": (0.35, 0.30, 0.15, 0.20)}
-WEATHER_TEMP_ADJ = {"Sunny": 2.0, "Cloudy": -2.0, "Rainy": -4.0, "Windy": -1.0, "Dusty": 3.0}
 
 # Dataset A behaviour by operator skill.
 IDLE_MEAN = {"Beginner": 0.30, "Intermediate": 0.22, "Expert": 0.15}
@@ -193,34 +192,35 @@ def _tasks_for(vertical: str, n: int, rng: np.random.Generator, fleet: Fleet) ->
 
     m = fleet_m.set_index("MachineID").loc[machine_id].reset_index()
     ops = _pick_operators(rng, fleet, m["SiteID"].to_numpy())
-    site = fleet.sites.set_index("SiteID").loc[m["SiteID"]]
-    site_mean = m["SiteID"].map(SITE_MEAN_TEMP).to_numpy()
-
     day = rng.integers(0, DAYS, n)
-    weather = rng.choice(C.WEATHERS, n, p=WEATHER_P[vertical])
     tod = rng.choice(C.TIMES_OF_DAY, n, p=TIME_OF_DAY_P[vertical])
+    hour = np.array([rng.choice(C.TIME_OF_DAY_HOURS[t]) for t in tod])
     night = tod == "Night"
-    temp = (_seasonal_temp(site_mean, site["Latitude"].to_numpy(), day)
-            + np.array([WEATHER_TEMP_ADJ[w] for w in weather]) - 5.0 * night + rng.normal(0, 2.5, n))
-    wind = np.where(weather == "Windy", rng.uniform(30, 60, n), rng.uniform(0, 25, n))
+    month = (DATE_START + pd.to_timedelta(day, unit="D")).month.to_numpy()
+    w = sample_task_weather(rng, m["SiteID"].to_numpy(), month, hour)
     slope = rng.gamma(2.0, 1.5, n) if vertical == "construction" else 1.0 + rng.gamma(2.0, 2.0, n)
 
     skill = ops["OperatorSkill"].to_numpy()
     exp_hours = ops["OperatorExpHours"].to_numpy(dtype=float)
     age = m["MachineAge_yrs"].to_numpy()
     estimated = np.array([C.baseline_minutes(vertical, t, v, h) for t, v, h in zip(task_type, volume, haul)])
+    haul_task = np.array([C.is_haul_task(vertical, t) for t in task_type])
+    effects = conditions.assess(w["Temperature_C"], w["Humidity_pct"], w["Visibility_m"], w["Precip_mm_h"],
+                                material, age, haul_task)
 
-    # ActualTime = Estimated x skill x weather x beginner_bad_weather x age x slope x night x noise.
+    # ActualTime = Estimated x skill x age x slope x night x wet ground x visibility x beginner penalty
+    #              / heat work fraction x noise   (SRS §6.2, schema v1.1)
     lo = np.array([SKILL_FACTOR[s][0] for s in skill])
     hi = np.array([SKILL_FACTOR[s][1] for s in skill])
     skill_f = hi - (hi - lo) * _skill_position(skill, exp_hours)  # more experience -> lower factor
-    weather_f = np.array([rng.uniform(*WEATHER_FACTOR[w]) for w in weather])
-    bad_weather_f = np.where((skill == "Beginner") & np.isin(weather, ["Rainy", "Windy"]), 1.10, 1.0)
+    bad_conditions = (w["Precip_mm_h"] >= 0.5) | (w["Visibility_m"] < 1000) | (w["WindSpeed_kmh"] >= 30)
+    beginner_f = np.where((skill == "Beginner") & bad_conditions, 1.10, 1.0)
     age_f = 1 + 0.015 * np.maximum(0, age - 3)
     slope_f = 1 + 0.01 * np.maximum(0, np.clip(slope, 0, 25) - 5)
     night_f = np.where(night, 1.08, 1.0)
     noise = rng.lognormal(0, 0.05, n)
-    actual = estimated * skill_f * weather_f * bad_weather_f * age_f * slope_f * night_f * noise
+    actual = (estimated * skill_f * age_f * slope_f * night_f * beginner_f * noise
+              * effects["WetMultiplier"] * effects["VisibilityMultiplier"] * effects["HeatMultiplier"])
 
     df = pd.DataFrame({
         "TaskID": "",
@@ -234,16 +234,20 @@ def _tasks_for(vertical: str, n: int, rng: np.random.Generator, fleet: Fleet) ->
         "MachineAge_yrs": age,
         "MaterialType": material,
         "TerrainSlope_deg": np.clip(slope, 0, 25).round(1),
-        "Weather": weather,
-        "Temperature_C": np.clip(temp, -20, 55).round(1),
-        "WindSpeed_kmh": wind.round(1),
+        "Weather": w["Weather"],
+        "Temperature_C": w["Temperature_C"].round(1),
+        "WindSpeed_kmh": w["WindSpeed_kmh"].round(1),
+        "Humidity_pct": w["Humidity_pct"].round(1),
+        "Visibility_m": w["Visibility_m"].round(0),
+        "Precip_mm_h": w["Precip_mm_h"].round(2),
         "OperatorSkill": skill,
         "OperatorExpHours": exp_hours,
         "LoadVolume_m3": volume.round(1),
         "HaulDistance_m": haul.round(0),
         "TimeOfDay": tod,
+        "StartHour": hour.astype(int),
         "EstimatedTime_min": estimated,
-        "ActualTime_min": np.clip(actual, 1, 1440).round(1),
+        "ActualTime_min": np.clip(actual, 1, 2880).round(1),
     })
     return df
 

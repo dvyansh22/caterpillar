@@ -51,6 +51,18 @@ python -m pytest ml/tests backend/tests
 - `generators/catalog.py` holds the domain constants (enums, machine specs, task standards, baseline formula).
 - `serving/task_time.py` is shared by training and `/ml/estimate`, so features are built identically.
 - The model predicts log(Actual / Estimated). Held-out-operator results are in `models/task_time_v1.metrics.json`.
+- **Weather and conditions (no stored weather):**
+  - `features/weather.py` simulates task weather from a few climate numbers per site (`catalog.SITE_CLIMATE`) and fetches live Open-Meteo forecasts at serving time.
+  - `features/conditions.py` turns weather into work effects: heat-stress breaks (WBGT), visibility, wet ground.
+  - The same code is used by the generator, training and `/ml/estimate`.
+
+### Demo: weather-aware ETA
+Start the backend (`cd backend && uvicorn app.main:app --reload`), open http://127.0.0.1:8000/docs → `POST /ml/estimate` → Try it out:
+- **Live weather + best start:** `{"task_type": "Earth Excavation", "weather": "Sunny", "operator_skill": "Beginner", "machine_age_yrs": 9, "site_id": "SITE01", "suggest_start": true}`
+- **Heat (repeatable):** add `"temperature_c": 37, "humidity_pct": 40` to show "heat breaks" and a hydration advisory.
+  Use `"machine_age_yrs": 4` to show an AC cab softening it.
+- **Fog on a mine haul:** `{"task_type": "Load-Haul-Dump", "vertical": "mining", "weather": "Sunny", "operator_skill": "Expert", "machine_age_yrs": 4, "site_id": "SITE06", "visibility_m": 150}`
+- **No internet:** still works, and `weather_source` becomes `site-typical`.
 
 ### P2 — anomaly, safety-alert and maintenance models (`/ml/anomaly`, `/ml/safety`, `/ml/maintenance`)
 Train on P1's `data/synthetic/telematics.csv`. `training/p2_dev_data.py` is an older stand-in Dataset A,

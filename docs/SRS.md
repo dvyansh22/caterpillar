@@ -139,7 +139,7 @@ Priority: **M** = Must, **S** = Should, **C** = Could.
 ### 4.3 Software Interfaces / APIs
 - Firebase (Auth, Firestore, Cloud Storage, Cloud Messaging, Cloud Functions).
 - FastAPI service: `/ml/estimate`, `/ml/anomaly`, `/rag/query`, `/voice/nlu`, `/sim/generate`, `/signal`.
-- LLM API (Gemini/Claude); OpenWeatherMap; Google Maps; Unity via flutter_unity_widget.
+- LLM API (Gemini/Claude); Open-Meteo (weather); Google Maps; Unity via flutter_unity_widget.
 
 ### 4.4 Communication Interfaces
 - HTTPS/REST + WebSocket (signaling).
@@ -219,8 +219,10 @@ in [`ml/data/schemas/`](../ml/data/schemas/). Changing a column requires sign-of
 - **Fleet:** about 40% of machines have no telematics. Beginner operators idle more and have more harsh events.
 - **Used for:** seatbelt compliance, idle/behavior detection, safety-alert prediction, predictive maintenance, fuel anomaly.
 
-### 6.2 Dataset B — Task History (`tasks.csv`)
+### 6.2 Dataset B — Task History (`tasks.csv`) — schema v1.1
 **Grain:** one row = one completed task. **Key:** `TaskID`.
+v1.1 (additive) adds the four weather/time columns marked *v1.1* and raises the `ActualTime_min` cap
+to 2880 min. Dataset A is unchanged.
 
 | Column | Type | Unit / allowed values | Null? | Role |
 |---|---|---|---|---|
@@ -233,21 +235,31 @@ in [`ml/data/schemas/`](../ml/data/schemas/). Changing a column requires sign-of
 | MachineAge_yrs | float | 0–20 | no | feature |
 | MaterialType | enum | per vertical (§6.6) | no | feature |
 | TerrainSlope_deg | float | 0–25 | no | feature |
-| Weather | enum | Sunny \| Cloudy \| Rainy \| Windy \| Dusty | no | feature |
-| Temperature_C | float | °C | no | feature |
+| Weather | enum | Sunny \| Cloudy \| Rainy \| Windy \| Dusty (derived from the conditions) | no | feature |
+| Temperature_C | float | °C, mean over the task window | no | feature |
 | WindSpeed_kmh | float | 0–60 | no | feature |
+| Humidity_pct *(v1.1)* | float | %, mean over the task window | no | feature |
+| Visibility_m *(v1.1)* | float | m, worst over the task window (50–20000) | no | feature |
+| Precip_mm_h *(v1.1)* | float | mm/h, mean rain rate over the task window | no | feature |
 | OperatorSkill | enum | Beginner \| Intermediate \| Expert | no | feature |
 | OperatorExpHours | float | 0–20000 | no | feature |
 | LoadVolume_m3 | float | m³ | no | feature |
 | HaulDistance_m | float | m, 0 for non-haul tasks | no | feature |
-| TimeOfDay | enum | Morning \| Afternoon \| Evening \| Night | no | feature |
+| TimeOfDay | enum | Morning \| Afternoon \| Evening \| Night (derived from StartHour) | no | feature |
+| StartHour *(v1.1)* | int | 0–23, site-local | no | feature |
 | EstimatedTime_min | float | min, planner baseline from `task_standards` | no | baseline |
-| ActualTime_min | float | min | no | **target** |
+| ActualTime_min | float | min, 1–2880 | no | **target** |
 
-- **Ground-truth rule:** `ActualTime_min = EstimatedTime_min × skill × weather × beginner-in-bad-weather × age × slope × night × noise`.
+- **Weather:** each task's weather is simulated from its site's climate profile (`catalog.SITE_CLIMATE`)
+  for its month and start hour. No weather history is stored.
+- **Ground-truth rule:** `ActualTime_min = EstimatedTime_min × skill × age × slope × night × wet ground × visibility × beginner-in-bad-conditions ÷ heat work fraction × noise`.
   - skill: Expert 0.88–0.97, Intermediate 1.00–1.12, Beginner 1.15–1.35
-  - weather: Rainy +10–20%, Windy +5–10%, Dusty +5%
-  - beginner in bad weather: an extra +10% if Beginner and (Rainy or Windy)
+  - heat (`ml/features/conditions.py`): shade WBGT from temperature and humidity, then the work/rest
+    schedule. Work 100 / 75 / 50 / 25 % of each hour at WBGT ≤ 28 / ≤ 29 / ≤ 30 / > 30 °C. An AC cab
+    (machine < 8 years) keeps 70 % of the lost time back.
+  - visibility: travel slows below 1000 m and haulage waits below 200 m. Haul tasks are 70 % driving, others 20 %.
+  - wet ground: up to +35 % by material (clay worst, rock least), +15 % safety pause above 7.6 mm/h
+  - beginner in bad conditions: an extra +10 % if Beginner and (rain ≥ 0.5 mm/h, visibility < 1000 m or wind ≥ 30 km/h)
   - age: +1.5% per year over 3
   - slope: +1% per degree over 5°
   - night: +8%

@@ -14,6 +14,17 @@ VERTICALS: tuple[str, ...] = ("construction", "mining")
 SKILLS: tuple[str, ...] = ("Beginner", "Intermediate", "Expert")
 WEATHERS: tuple[str, ...] = ("Sunny", "Cloudy", "Rainy", "Windy", "Dusty")
 TIMES_OF_DAY: tuple[str, ...] = ("Morning", "Afternoon", "Evening", "Night")
+TIME_OF_DAY_HOURS: dict[str, tuple[int, ...]] = {
+    "Morning": (6, 7, 8, 9, 10, 11),
+    "Afternoon": (12, 13, 14, 15, 16),
+    "Evening": (17, 18, 19, 20),
+    "Night": (21, 22, 23, 0, 1, 2, 3, 4, 5),
+}
+
+
+def time_of_day(hour: int) -> str:
+    """TimeOfDay label for a local start hour (0-23)."""
+    return next(label for label, hours in TIME_OF_DAY_HOURS.items() if hour % 24 in hours)
 
 FAULT_CODES: tuple[str, ...] = (
     "HYD_PRESSURE_LOW",
@@ -44,6 +55,32 @@ SITES: tuple[tuple[str, str, str, float, float, float], ...] = (
     ("SITE06", "Jharia Coalfield", "mining", 23.7500, 86.4200, 26.0),
     ("SITE07", "Nevada Gold Mine", "mining", 40.8000, -116.0000, 11.0),
 )
+
+# ---- Site climate profiles --------------------------------------------------------------
+# A few numbers per site, enough to simulate realistic hourly weather without storing any history.
+# Approximate climatology, not measurements. Keys:
+#   temp_mean / season_amp / peak_month   annual mean °C, seasonal half-swing, hottest month
+#   diurnal                               day-night temperature range °C (hottest ~15:00)
+#   rh_dry / rh_wet                       typical relative humidity % outside / inside wet months
+#   wet_months                            monsoon / wet season (cooler by ~3 °C, humid, rainy)
+#   rain_p_dry / rain_p_wet               chance a task window has rain
+#   fog_p / dust_p                        chance of fog (mostly mornings) / dust (dry afternoons)
+SITE_CLIMATE: dict[str, dict] = {
+    "SITE01": dict(temp_mean=26, season_amp=5, peak_month=5, diurnal=12, rh_dry=40, rh_wet=85,
+                   wet_months=(6, 7, 8, 9), rain_p_dry=0.02, rain_p_wet=0.45, fog_p=0.02, dust_p=0.02),
+    "SITE02": dict(temp_mean=24, season_amp=3, peak_month=4, diurnal=10, rh_dry=50, rh_wet=85,
+                   wet_months=(6, 7, 8, 9, 10), rain_p_dry=0.04, rain_p_wet=0.35, fog_p=0.02, dust_p=0.01),
+    "SITE03": dict(temp_mean=21, season_amp=8, peak_month=7, diurnal=9, rh_dry=65, rh_wet=78,
+                   wet_months=(4, 5, 6, 9, 10), rain_p_dry=0.10, rain_p_wet=0.15, fog_p=0.05, dust_p=0.0),
+    "SITE04": dict(temp_mean=11, season_amp=13, peak_month=7, diurnal=10, rh_dry=65, rh_wet=70,
+                   wet_months=(4, 5, 6, 7), rain_p_dry=0.10, rain_p_wet=0.15, fog_p=0.04, dust_p=0.01),
+    "SITE05": dict(temp_mean=27, season_amp=7, peak_month=1, diurnal=14, rh_dry=25, rh_wet=45,
+                   wet_months=(1, 2, 3), rain_p_dry=0.01, rain_p_wet=0.10, fog_p=0.01, dust_p=0.12),
+    "SITE06": dict(temp_mean=26, season_amp=7, peak_month=5, diurnal=11, rh_dry=45, rh_wet=85,
+                   wet_months=(6, 7, 8, 9), rain_p_dry=0.02, rain_p_wet=0.45, fog_p=0.06, dust_p=0.08),
+    "SITE07": dict(temp_mean=10, season_amp=12, peak_month=7, diurnal=16, rh_dry=30, rh_wet=45,
+                   wet_months=(12, 1, 2, 3), rain_p_dry=0.03, rain_p_wet=0.08, fog_p=0.02, dust_p=0.06),
+}
 
 # ---- Machine specs ----------------------------------------------------------------------
 # Per (vertical, machine type). Ranges are (low, high).
@@ -179,6 +216,11 @@ TASK_SPECS: dict[tuple[str, str], dict] = {
 TASK_TYPES: dict[str, tuple[str, ...]] = {
     v: tuple(t for (vv, t) in TASK_SPECS if vv == v) for v in VERTICALS
 }
+
+def is_haul_task(vertical: str, task_type: str) -> bool:
+    """Tasks that are mostly driving (long hauls), so visibility hits them hardest."""
+    return TASK_SPECS[(vertical, task_type)]["ref_haul_m"] >= 500
+
 
 # Volume elasticity of planner time (economies of scale on bigger jobs).
 BASELINE_VOLUME_EXPONENT = 0.9

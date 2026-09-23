@@ -1,7 +1,7 @@
 {
-  "model_version": "xgb-v1",
-  "schema_version": "1.0",
-  "trained_at": "2026-09-23T08:40:57+00:00",
+  "model_version": "xgb-v2",
+  "schema_version": "1.1",
+  "trained_at": "2026-09-23T17:12:03+00:00",
   "data": {
     "file": "tasks.csv",
     "rows": 20000,
@@ -24,96 +24,131 @@
     "OperatorExpHours",
     "LoadVolume_m3",
     "HaulDistance_m",
-    "EstimatedTime_min"
+    "EstimatedTime_min",
+    "Humidity_pct",
+    "Visibility_m",
+    "Precip_mm_h",
+    "StartHour",
+    "WBGT_C",
+    "HeatMultiplier",
+    "VisibilityMultiplier",
+    "WetMultiplier"
   ],
   "target": "log(ActualTime_min / EstimatedTime_min); ETA = EstimatedTime_min * exp(prediction)",
   "holdout_metrics": {
     "overall": {
       "rows": 4000,
       "model": {
-        "mae_min": 5.09,
-        "rmse_min": 8.19,
-        "mape_pct": 4.21
+        "mae_min": 5.52,
+        "rmse_min": 11.2,
+        "mape_pct": 4.26
       },
       "baseline": {
-        "mae_min": 25.35,
-        "rmse_min": 39.81,
-        "mape_pct": 19.19
+        "mae_min": 28.15,
+        "rmse_min": 58.93,
+        "mape_pct": 19.75
       },
-      "mae_improvement_pct": 79.9
+      "mae_improvement_pct": 80.4
     },
     "by_vertical": {
       "construction": {
         "rows": 1990,
         "model": {
-          "mae_min": 3.07,
-          "rmse_min": 4.58,
-          "mape_pct": 4.23
+          "mae_min": 3.19,
+          "rmse_min": 4.83,
+          "mape_pct": 4.26
         },
         "baseline": {
-          "mae_min": 15.69,
-          "rmse_min": 22.98,
-          "mape_pct": 19.34
+          "mae_min": 15.98,
+          "rmse_min": 23.89,
+          "mape_pct": 19.5
         },
-        "mae_improvement_pct": 80.4
+        "mae_improvement_pct": 80.0
       },
       "mining": {
         "rows": 2010,
         "model": {
-          "mae_min": 7.1,
-          "rmse_min": 10.61,
-          "mape_pct": 4.19
+          "mae_min": 7.82,
+          "rmse_min": 15.04,
+          "mape_pct": 4.27
         },
         "baseline": {
-          "mae_min": 34.91,
-          "rmse_min": 51.3,
-          "mape_pct": 19.04
+          "mae_min": 40.21,
+          "rmse_min": 79.66,
+          "mape_pct": 20.0
         },
-        "mae_improvement_pct": 79.7
+        "mae_improvement_pct": 80.6
       }
     },
     "by_skill": {
       "Beginner": {
         "rows": 2230,
         "model": {
-          "mae_min": 5.23,
-          "rmse_min": 8.49,
-          "mape_pct": 4.29
+          "mae_min": 5.67,
+          "rmse_min": 10.53,
+          "mape_pct": 4.27
         },
         "baseline": {
-          "mae_min": 34.21,
-          "rmse_min": 49.42,
-          "mape_pct": 25.88
+          "mae_min": 37.55,
+          "rmse_min": 67.16,
+          "mape_pct": 26.39
         },
-        "mae_improvement_pct": 84.7
+        "mae_improvement_pct": 84.9
       },
       "Expert": {
         "rows": 394,
         "model": {
-          "mae_min": 4.07,
-          "rmse_min": 6.8,
-          "mape_pct": 3.98
+          "mae_min": 4.19,
+          "rmse_min": 6.78,
+          "mape_pct": 4.22
         },
         "baseline": {
-          "mae_min": 8.5,
-          "rmse_min": 13.94,
-          "mape_pct": 7.56
+          "mae_min": 9.55,
+          "rmse_min": 14.57,
+          "mape_pct": 9.11
         },
-        "mae_improvement_pct": 52.1
+        "mae_improvement_pct": 56.1
       },
       "Intermediate": {
         "rows": 1376,
         "model": {
-          "mae_min": 5.16,
-          "rmse_min": 8.05,
-          "mape_pct": 4.14
+          "mae_min": 5.66,
+          "rmse_min": 13.1,
+          "mape_pct": 4.27
         },
         "baseline": {
-          "mae_min": 15.83,
-          "rmse_min": 24.36,
-          "mape_pct": 11.67
+          "mae_min": 18.26,
+          "rmse_min": 52.19,
+          "mape_pct": 12.04
         },
-        "mae_improvement_pct": 67.4
+        "mae_improvement_pct": 69.0
+      }
+    },
+    "ablation_weather_label_only": {
+      "all_tasks": {
+        "conditions_model": {
+          "mae_min": 5.52,
+          "rmse_min": 11.2,
+          "mape_pct": 4.26
+        },
+        "label_only_model": {
+          "mae_min": 9.38,
+          "rmse_min": 36.09,
+          "mape_pct": 6.2
+        }
+      },
+      "tasks_with_heat_visibility_or_rain": {
+        "rows": 797,
+        "conditions_model": {
+          "mae_min": 7.75,
+          "rmse_min": 19.08,
+          "mape_pct": 4.7
+        },
+        "label_only_model": {
+          "mae_min": 22.98,
+          "rmse_min": 77.72,
+          "mape_pct": 11.32
+        }
       }
     }
   }

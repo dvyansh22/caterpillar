@@ -1,12 +1,17 @@
 {
   "dataset": "tasks",
   "label": "Dataset B — Task History",
-  "version": "1.0",
+  "version": "1.1",
   "owner": "P1",
-  "consumers": ["P1", "P4"],
+  "consumers": [
+    "P1",
+    "P4"
+  ],
   "file": "ml/data/synthetic/tasks.csv",
   "grain": "One row = one completed task.",
-  "primary_key": ["TaskID"],
+  "primary_key": [
+    "TaskID"
+  ],
   "foreign_keys": {
     "MachineID": "machines.MachineID",
     "OperatorID": "operators.OperatorID",
@@ -15,47 +20,348 @@
   },
   "null_encoding": "empty cell",
   "columns": [
-    {"name": "TaskID", "type": "string", "pattern": "^T\\d{3,6}$", "nullable": false, "role": "key", "description": "Unique task id, e.g. T000001 (organizer sample uses T001)."},
-    {"name": "Date", "type": "date", "format": "YYYY-MM-DD", "nullable": false, "role": "key", "description": "Date the task was performed."},
-    {"name": "Vertical", "type": "enum", "allowed": ["construction", "mining"], "nullable": false, "role": "feature", "description": "Industry vertical."},
-    {"name": "SiteID", "type": "string", "pattern": "^SITE\\d{2}$", "nullable": false, "role": "key", "description": "Job site / mine id."},
-    {"name": "MachineID", "type": "string", "pattern": "^[A-Z]{2,3}\\d{3}$", "nullable": false, "role": "key", "description": "Machine used for the task."},
-    {"name": "OperatorID", "type": "string", "pattern": "^OP\\d{4}$", "nullable": false, "role": "key", "description": "Operator who performed the task."},
-    {"name": "TaskType", "type": "enum", "allowed_ref": "enums.TaskType", "nullable": false, "role": "feature", "description": "Task type; allowed values depend on Vertical."},
-    {"name": "MachineType", "type": "enum", "allowed_ref": "enums.MachineType", "nullable": false, "role": "feature", "description": "Machine type; allowed values depend on Vertical."},
-    {"name": "MachineAge_yrs", "type": "float", "unit": "yr", "range": [0, 20], "nullable": false, "role": "feature", "description": "Machine age."},
-    {"name": "MaterialType", "type": "enum", "allowed_ref": "enums.MaterialType", "nullable": false, "role": "feature", "description": "Material handled; allowed values depend on Vertical."},
-    {"name": "TerrainSlope_deg", "type": "float", "unit": "deg", "range": [0, 25], "nullable": false, "role": "feature", "description": "Average terrain slope at the work area."},
-    {"name": "Weather", "type": "enum", "allowed": ["Sunny", "Cloudy", "Rainy", "Windy", "Dusty"], "nullable": false, "role": "feature", "description": "Dominant weather during the task (organizer set + Dusty)."},
-    {"name": "Temperature_C", "type": "float", "unit": "degC", "range": [-20, 55], "nullable": false, "role": "feature", "description": "Ambient temperature."},
-    {"name": "WindSpeed_kmh", "type": "float", "unit": "km/h", "range": [0, 60], "nullable": false, "role": "feature", "description": "Wind speed."},
-    {"name": "OperatorSkill", "type": "enum", "allowed": ["Beginner", "Intermediate", "Expert"], "nullable": false, "role": "feature", "description": "Operator skill level."},
-    {"name": "OperatorExpHours", "type": "float", "unit": "h", "range": [0, 20000], "nullable": false, "role": "feature", "description": "Operator's total operating experience."},
-    {"name": "LoadVolume_m3", "type": "float", "unit": "m3", "range": [0, 20000], "nullable": false, "role": "feature", "description": "Material volume moved/processed."},
-    {"name": "HaulDistance_m", "type": "float", "unit": "m", "range": [0, 10000], "nullable": false, "role": "feature", "description": "One-way haul distance; 0 for non-haul tasks."},
-    {"name": "TimeOfDay", "type": "enum", "allowed": ["Morning", "Afternoon", "Evening", "Night"], "nullable": false, "role": "feature", "description": "Shift period in which the task started."},
-    {"name": "EstimatedTime_min", "type": "float", "unit": "min", "range": [1, 1440], "nullable": false, "role": "baseline", "description": "Naive planner estimate from task_standards (scaled by volume/distance). The model must beat it."},
-    {"name": "ActualTime_min", "type": "float", "unit": "min", "range": [1, 1440], "nullable": false, "role": "target", "description": "Target: actual task duration."}
+    {
+      "name": "TaskID",
+      "type": "string",
+      "pattern": "^T\\d{3,6}$",
+      "nullable": false,
+      "role": "key",
+      "description": "Unique task id, e.g. T000001 (organizer sample uses T001)."
+    },
+    {
+      "name": "Date",
+      "type": "date",
+      "format": "YYYY-MM-DD",
+      "nullable": false,
+      "role": "key",
+      "description": "Date the task was performed."
+    },
+    {
+      "name": "Vertical",
+      "type": "enum",
+      "allowed": [
+        "construction",
+        "mining"
+      ],
+      "nullable": false,
+      "role": "feature",
+      "description": "Industry vertical."
+    },
+    {
+      "name": "SiteID",
+      "type": "string",
+      "pattern": "^SITE\\d{2}$",
+      "nullable": false,
+      "role": "key",
+      "description": "Job site / mine id."
+    },
+    {
+      "name": "MachineID",
+      "type": "string",
+      "pattern": "^[A-Z]{2,3}\\d{3}$",
+      "nullable": false,
+      "role": "key",
+      "description": "Machine used for the task."
+    },
+    {
+      "name": "OperatorID",
+      "type": "string",
+      "pattern": "^OP\\d{4}$",
+      "nullable": false,
+      "role": "key",
+      "description": "Operator who performed the task."
+    },
+    {
+      "name": "TaskType",
+      "type": "enum",
+      "allowed_ref": "enums.TaskType",
+      "nullable": false,
+      "role": "feature",
+      "description": "Task type; allowed values depend on Vertical."
+    },
+    {
+      "name": "MachineType",
+      "type": "enum",
+      "allowed_ref": "enums.MachineType",
+      "nullable": false,
+      "role": "feature",
+      "description": "Machine type; allowed values depend on Vertical."
+    },
+    {
+      "name": "MachineAge_yrs",
+      "type": "float",
+      "unit": "yr",
+      "range": [
+        0,
+        20
+      ],
+      "nullable": false,
+      "role": "feature",
+      "description": "Machine age."
+    },
+    {
+      "name": "MaterialType",
+      "type": "enum",
+      "allowed_ref": "enums.MaterialType",
+      "nullable": false,
+      "role": "feature",
+      "description": "Material handled; allowed values depend on Vertical."
+    },
+    {
+      "name": "TerrainSlope_deg",
+      "type": "float",
+      "unit": "deg",
+      "range": [
+        0,
+        25
+      ],
+      "nullable": false,
+      "role": "feature",
+      "description": "Average terrain slope at the work area."
+    },
+    {
+      "name": "Weather",
+      "type": "enum",
+      "allowed": [
+        "Sunny",
+        "Cloudy",
+        "Rainy",
+        "Windy",
+        "Dusty"
+      ],
+      "nullable": false,
+      "role": "feature",
+      "description": "Weather label derived from the conditions (Rainy > Dusty > Windy > Cloudy > Sunny)."
+    },
+    {
+      "name": "Temperature_C",
+      "type": "float",
+      "unit": "degC",
+      "range": [
+        -20,
+        55
+      ],
+      "nullable": false,
+      "role": "feature",
+      "description": "Mean air temperature over the task window."
+    },
+    {
+      "name": "WindSpeed_kmh",
+      "type": "float",
+      "unit": "km/h",
+      "range": [
+        0,
+        60
+      ],
+      "nullable": false,
+      "role": "feature",
+      "description": "Wind speed."
+    },
+    {
+      "name": "Humidity_pct",
+      "type": "float",
+      "unit": "%",
+      "range": [
+        0,
+        100
+      ],
+      "nullable": false,
+      "role": "feature",
+      "description": "Mean relative humidity over the task window (v1.1)."
+    },
+    {
+      "name": "Visibility_m",
+      "type": "float",
+      "unit": "m",
+      "range": [
+        50,
+        20000
+      ],
+      "nullable": false,
+      "role": "feature",
+      "description": "Worst visibility over the task window: fog, dust, heavy rain (v1.1)."
+    },
+    {
+      "name": "Precip_mm_h",
+      "type": "float",
+      "unit": "mm/h",
+      "range": [
+        0,
+        100
+      ],
+      "nullable": false,
+      "role": "feature",
+      "description": "Mean rain rate over the task window (v1.1)."
+    },
+    {
+      "name": "OperatorSkill",
+      "type": "enum",
+      "allowed": [
+        "Beginner",
+        "Intermediate",
+        "Expert"
+      ],
+      "nullable": false,
+      "role": "feature",
+      "description": "Operator skill level."
+    },
+    {
+      "name": "OperatorExpHours",
+      "type": "float",
+      "unit": "h",
+      "range": [
+        0,
+        20000
+      ],
+      "nullable": false,
+      "role": "feature",
+      "description": "Operator's total operating experience."
+    },
+    {
+      "name": "LoadVolume_m3",
+      "type": "float",
+      "unit": "m3",
+      "range": [
+        0,
+        20000
+      ],
+      "nullable": false,
+      "role": "feature",
+      "description": "Material volume moved/processed."
+    },
+    {
+      "name": "HaulDistance_m",
+      "type": "float",
+      "unit": "m",
+      "range": [
+        0,
+        10000
+      ],
+      "nullable": false,
+      "role": "feature",
+      "description": "One-way haul distance; 0 for non-haul tasks."
+    },
+    {
+      "name": "TimeOfDay",
+      "type": "enum",
+      "allowed": [
+        "Morning",
+        "Afternoon",
+        "Evening",
+        "Night"
+      ],
+      "nullable": false,
+      "role": "feature",
+      "description": "Shift period in which the task started."
+    },
+    {
+      "name": "StartHour",
+      "type": "int",
+      "unit": "h",
+      "range": [
+        0,
+        23
+      ],
+      "nullable": false,
+      "role": "feature",
+      "description": "Local start hour; TimeOfDay is derived from it (v1.1)."
+    },
+    {
+      "name": "EstimatedTime_min",
+      "type": "float",
+      "unit": "min",
+      "range": [
+        1,
+        1440
+      ],
+      "nullable": false,
+      "role": "baseline",
+      "description": "Naive planner estimate from task_standards (scaled by volume/distance). The model must beat it."
+    },
+    {
+      "name": "ActualTime_min",
+      "type": "float",
+      "unit": "min",
+      "range": [
+        1,
+        2880
+      ],
+      "nullable": false,
+      "role": "target",
+      "description": "Target: actual task duration (up to 2 days in extreme heat, v1.1)."
+    }
   ],
   "enums": {
     "MachineType": {
-      "construction": ["Excavator", "Wheel Loader", "Dozer", "Motor Grader", "Backhoe Loader"],
-      "mining": ["Haul Truck", "Hydraulic Shovel", "Wheel Loader", "Dozer", "Drill"]
+      "construction": [
+        "Excavator",
+        "Wheel Loader",
+        "Dozer",
+        "Motor Grader",
+        "Backhoe Loader"
+      ],
+      "mining": [
+        "Haul Truck",
+        "Hydraulic Shovel",
+        "Wheel Loader",
+        "Dozer",
+        "Drill"
+      ]
     },
     "TaskType": {
-      "construction": ["Earth Excavation", "Trenching", "Material Loading", "Grading", "Demolition"],
-      "mining": ["Overburden Removal", "Ore Loading", "Load-Haul-Dump", "Haul Road Maintenance", "Bench Drilling"]
+      "construction": [
+        "Earth Excavation",
+        "Trenching",
+        "Material Loading",
+        "Grading",
+        "Demolition"
+      ],
+      "mining": [
+        "Overburden Removal",
+        "Ore Loading",
+        "Load-Haul-Dump",
+        "Haul Road Maintenance",
+        "Bench Drilling"
+      ]
     },
     "MaterialType": {
-      "construction": ["Soil", "Clay", "Sand", "Gravel", "Rock", "Debris"],
-      "mining": ["Overburden", "Ore", "Coal", "Blasted Rock"]
+      "construction": [
+        "Soil",
+        "Clay",
+        "Sand",
+        "Gravel",
+        "Rock",
+        "Debris"
+      ],
+      "mining": [
+        "Overburden",
+        "Ore",
+        "Coal",
+        "Blasted Rock"
+      ]
     }
   },
   "generation_rules": {
-    "ActualTime_min": "EstimatedTime_min x skill x weather x beginner_bad_weather x age x slope x night x noise",
-    "skill": {"Expert": [0.88, 0.97], "Intermediate": [1.00, 1.12], "Beginner": [1.15, 1.35]},
-    "weather": {"Sunny": [1.0, 1.0], "Cloudy": [1.0, 1.0], "Rainy": [1.10, 1.20], "Windy": [1.05, 1.10], "Dusty": [1.05, 1.05]},
-    "beginner_bad_weather": "x1.10 if OperatorSkill=Beginner AND Weather in (Rainy, Windy)",
+    "weather": "Sampled per task from the site's climate profile (catalog.SITE_CLIMATE) for its month and start hour; no stored history.",
+    "ActualTime_min": "EstimatedTime_min x skill x age x slope x night x wet_ground x visibility x beginner_bad_conditions / heat_work_fraction x noise",
+    "skill": {
+      "Expert": [
+        0.88,
+        0.97
+      ],
+      "Intermediate": [
+        1.0,
+        1.12
+      ],
+      "Beginner": [
+        1.15,
+        1.35
+      ]
+    },
+    "heat_work_fraction": "ml/features/conditions.py: shade WBGT from temp + humidity -> 100/75/50/25% work at WBGT <=28/29/30/>30 °C; AC cab (machine < 8 yrs) keeps 70% of the time lost",
+    "visibility": "ml/features/conditions.py: travel slows below 1000 m, haulage waits below 200 m (haul tasks 70% driving, others 20%)",
+    "wet_ground": "ml/features/conditions.py: up to +35% by material wet-sensitivity (clay worst, rock least) + 15% safety pause above 7.6 mm/h",
+    "beginner_bad_conditions": "x1.10 if OperatorSkill=Beginner AND (rain >= 0.5 mm/h OR visibility < 1000 m OR wind >= 30 km/h)",
     "age": "x(1 + 0.015 * max(0, MachineAge_yrs - 3))",
     "slope": "x(1 + 0.01 * max(0, TerrainSlope_deg - 5))",
     "night": "x1.08 if TimeOfDay=Night",

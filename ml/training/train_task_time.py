@@ -25,7 +25,9 @@ if __package__ in (None, ""):  # run as a script: make `ml` importable
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from ml.generators.schema import load_schema  # noqa: E402
-from ml.serving.task_time import FEATURES, MODEL_PATH, MODEL_VERSION, build_pipeline, target, to_minutes  # noqa: E402
+from ml.serving.task_time import (  # noqa: E402
+    FEATURES, LEGACY_FEATURES, MODEL_PATH, MODEL_VERSION, add_condition_features, build_pipeline, target, to_minutes,
+)
 
 ML_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_DATA = ML_DIR / "data" / "synthetic" / "tasks.csv"
@@ -68,14 +70,29 @@ def main() -> None:
     data = Path(args.data)
     if not data.exists():
         sys.exit(f"{data} not found; run `python ml/generators/generate.py` first.")
-    df = pd.read_csv(data, keep_default_na=False, na_values=[""])
+    df = add_condition_features(pd.read_csv(data, keep_default_na=False, na_values=[""]))
 
     split = GroupShuffleSplit(n_splits=1, test_size=args.test_size, random_state=args.seed)
     train_idx, test_idx = next(split.split(df, groups=df["OperatorID"]))
     train, test = df.iloc[train_idx], df.iloc[test_idx].reset_index(drop=True)
 
     pipeline = build_pipeline(args.seed).fit(train[FEATURES], target(train))
-    metrics = evaluate(test, to_minutes(pipeline, test))
+    predicted = to_minutes(pipeline, test)
+    metrics = evaluate(test, predicted)
+
+    # Ablation: the same model with only the weather label + temperature/wind (the v1 feature set).
+    legacy = build_pipeline(args.seed, LEGACY_FEATURES).fit(train[LEGACY_FEATURES], target(train))
+    legacy_pred = to_minutes(legacy, test, LEGACY_FEATURES)
+    hard = ((test[["HeatMultiplier", "VisibilityMultiplier", "WetMultiplier"]] > 1.001).any(axis=1)).to_numpy()
+    actual = test["ActualTime_min"].to_numpy()
+    metrics["ablation_weather_label_only"] = {
+        "all_tasks": {"conditions_model": _errors(actual, predicted), "label_only_model": _errors(actual, legacy_pred)},
+        "tasks_with_heat_visibility_or_rain": {
+            "rows": int(hard.sum()),
+            "conditions_model": _errors(actual[hard], predicted[hard]),
+            "label_only_model": _errors(actual[hard], legacy_pred[hard]),
+        },
+    }
 
     final = build_pipeline(args.seed).fit(df[FEATURES], target(df))  # ship a model trained on everything
     out = Path(args.out)
@@ -102,6 +119,11 @@ def main() -> None:
         for name, m in metrics[group].items():
             print(f"  {name:<13} MAE {m['model']['mae_min']:>6} vs {m['baseline']['mae_min']:>6}  "
                   f"({m['mae_improvement_pct']}% better)")
+    a = metrics["ablation_weather_label_only"]
+    h = a["tasks_with_heat_visibility_or_rain"]
+    print(f"Ablation (MAE): conditions model {a['all_tasks']['conditions_model']['mae_min']} vs weather-label-only "
+          f"{a['all_tasks']['label_only_model']['mae_min']} min; on the {h['rows']} tasks hit by heat/visibility/rain: "
+          f"{h['conditions_model']['mae_min']} vs {h['label_only_model']['mae_min']} min")
     print(f"Saved {out} and {out.with_suffix('.metrics.json').name}")
 
 
