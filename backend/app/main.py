@@ -5,6 +5,7 @@ Ship stub responses first so the app team (P3) can integrate before models are t
 """
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import load_env
 
@@ -15,6 +16,16 @@ from app.routers import ml, rag, voice, sim  # noqa: E402
 app = FastAPI(
     title="Smart Operator Assistant — AI Service",
     version="0.1.0",
+)
+
+# The operator app (and the Flutter web dashboard) call this service from another
+# origin. Allow all origins: it is a public, read-only ML API with no cookies/auth.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+    allow_credentials=False,
 )
 
 
