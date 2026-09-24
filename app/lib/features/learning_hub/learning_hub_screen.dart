@@ -4,6 +4,8 @@
 /// and everyday-object mapping info. P3 owns this feature.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -69,11 +71,276 @@ class LearningHubScreen extends ConsumerWidget {
             ),
           ),
 
+          // Animated controls manual (mirrors the AR lessons).
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(20, 28, 20, 12),
+              child: Text(
+                'How the Controls Work',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: CatColors.textPrimary,
+                ),
+              ),
+            ),
+          ),
+          const SliverToBoxAdapter(child: _ControlsManual()),
+
           const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
       ),
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// Animated controls manual — a no-camera, looping demo of each control,
+// matching the AR lessons: red gear (slew + reach), blue lever (lift),
+// green button (press-and-hold engine start/stop).
+// ---------------------------------------------------------------------------
+
+class _ControlsManual extends StatefulWidget {
+  const _ControlsManual();
+
+  @override
+  State<_ControlsManual> createState() => _ControlsManualState();
+}
+
+class _ControlsManualState extends State<_ControlsManual>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c;
+
+  @override
+  void initState() {
+    super.initState();
+    _c = AnimationController(vsync: this, duration: const Duration(seconds: 4))
+      ..repeat();
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        children: [
+          _ManualRow(
+            anim: _c,
+            kind: _ManualKind.gear,
+            accent: const Color(0xFFFF5252),
+            title: 'Red Gear — Direction',
+            body: 'Grip the red-capped gear. Move it forward/back to extend or '
+                'retract the crane boom, and left/right to slew the cab.',
+          ),
+          const SizedBox(height: 12),
+          _ManualRow(
+            anim: _c,
+            kind: _ManualKind.lever,
+            accent: const Color(0xFF448AFF),
+            title: 'Blue Lever — Lift',
+            body: 'Slide the blue-knob lever up and down to raise and lower the '
+                'boom. Hold it steady to keep the boom at a height.',
+          ),
+          const SizedBox(height: 12),
+          _ManualRow(
+            anim: _c,
+            kind: _ManualKind.engine,
+            accent: const Color(0xFF69F0AE),
+            title: 'Green Button — Engine',
+            body: 'Press and hold the green button for ~1 second to start the '
+                'engine before the drill, and again to stop it at the end.',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+enum _ManualKind { gear, lever, engine }
+
+class _ManualRow extends StatelessWidget {
+  const _ManualRow({
+    required this.anim,
+    required this.kind,
+    required this.accent,
+    required this.title,
+    required this.body,
+  });
+
+  final Animation<double> anim;
+  final _ManualKind kind;
+  final Color accent;
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: CatColors.constructionSurface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: accent.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 92,
+            height: 92,
+            child: AnimatedBuilder(
+              animation: anim,
+              builder: (context, _) => CustomPaint(
+                painter: _ManualPainter(
+                    t: anim.value, kind: kind, accent: accent),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: accent,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  body,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    height: 1.35,
+                    color: CatColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ManualPainter extends CustomPainter {
+  _ManualPainter({required this.t, required this.kind, required this.accent});
+  final double t; // 0..1 loop
+  final _ManualKind kind;
+  final Color accent;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    switch (kind) {
+      case _ManualKind.gear:
+        // Boom slews left↔right and extends in↔out.
+        _crane(canvas, size, lift: 0.55, swing: math.sin(t * 2 * math.pi),
+            reach: 0.5 + 0.45 * math.sin(t * 2 * math.pi));
+      case _ManualKind.lever:
+        // Boom lifts up↔down.
+        _crane(canvas, size,
+            lift: 0.5 + 0.45 * math.sin(t * 2 * math.pi), swing: 0, reach: 0.6);
+      case _ManualKind.engine:
+        _engine(canvas, size);
+    }
+  }
+
+  void _crane(Canvas canvas, Size size,
+      {required double lift, required double swing, required double reach}) {
+    final w = size.width, h = size.height;
+    const yellow = CatColors.catYellow;
+    final steel = Paint()
+      ..color = yellow
+      ..strokeWidth = 4
+      ..strokeCap = StrokeCap.round;
+    final baseY = h * 0.86;
+    final cx = w * 0.42;
+    // fixed base + cab
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+          Rect.fromCenter(
+              center: Offset(cx, baseY - 3), width: w * 0.5, height: h * 0.09),
+          const Radius.circular(3)),
+      Paint()..color = const Color(0xFF2A2A2A),
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+          Rect.fromLTWH(cx - w * 0.1, baseY - h * 0.16, w * 0.2, h * 0.11),
+          const Radius.circular(3)),
+      Paint()..color = yellow,
+    );
+    final mastTop = Offset(cx, baseY - h * 0.4);
+    canvas.drawLine(Offset(cx, baseY - h * 0.13), mastTop, steel);
+    final ext = 0.55 + reach * 0.5;
+    final hx = swing * w * 0.34 * ext;
+    final vy = -(0.3 + lift * 0.6) * h * 0.5 * ext;
+    final tip = mastTop + Offset(hx, vy);
+    canvas.drawLine(mastTop, tip,
+        Paint()
+          ..color = yellow
+          ..strokeWidth = 5
+          ..strokeCap = StrokeCap.round);
+    final hook = Offset(tip.dx, tip.dy + h * 0.14);
+    canvas.drawLine(
+        tip, hook, Paint()..color = Colors.white70..strokeWidth = 1.5);
+    canvas.drawCircle(hook, 2.5, Paint()..color = Colors.white70);
+    // accent dot marks the moving tip (which control is driving it).
+    canvas.drawCircle(tip, 3.5, Paint()..color = accent);
+  }
+
+  void _engine(Canvas canvas, Size size) {
+    final w = size.width, h = size.height;
+    final center = Offset(w / 2, h / 2);
+    final r = w * 0.26;
+    // hold cycles 0→1 then resets, like a press-and-hold.
+    final hold = (t * 2) % 1.0;
+    // button disc
+    canvas.drawCircle(center, r, Paint()..color = accent.withValues(alpha: 0.85));
+    canvas.drawCircle(
+      center,
+      r,
+      Paint()
+        ..color = accent
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2,
+    );
+    // power glyph
+    final glyph = Paint()
+      ..color = const Color(0xFF141414)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.4
+      ..strokeCap = StrokeCap.round;
+    canvas.drawArc(Rect.fromCircle(center: center, radius: r * 0.5),
+        -math.pi / 2 + 0.7, 2 * math.pi - 1.4, false, glyph);
+    canvas.drawLine(center + Offset(0, -r * 0.55), center + Offset(0, -r * 0.1),
+        glyph);
+    // hold progress ring
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: r + 7),
+      -math.pi / 2,
+      2 * math.pi * hold,
+      false,
+      Paint()
+        ..color = accent
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4
+        ..strokeCap = StrokeCap.round,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _ManualPainter old) =>
+      old.t != t || old.kind != kind;
 }
 
 // ---------------------------------------------------------------------------
