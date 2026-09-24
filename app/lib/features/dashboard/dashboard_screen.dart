@@ -271,53 +271,58 @@ const _mining = _Site(
   ],
 );
 
-/// Live dashboard data: fleet + idle from the model backend (`/ml/fleet`),
-/// incidents + training from Firestore. Falls back to the seed site for any
-/// piece the backend/Firestore can't provide, so the view is never blank.
-final dashSiteProvider = FutureProvider.autoDispose.family<_Site, Vertical>((ref, vertical) async {
+/// Live dashboard data: fleet + idle from the model backend (`/ml/fleet`, which
+/// simulates live variation), incidents + training from Firestore. Polls every
+/// 6s so the fleet animates and newly-logged incidents appear without a reload.
+/// Falls back to the seed site for any piece the backend/Firestore can't provide.
+final dashSiteProvider = StreamProvider.autoDispose.family<_Site, Vertical>((ref, vertical) async* {
   final vs = vertical == Vertical.mining ? 'mining' : 'construction';
   final seed = vertical == Vertical.mining ? _mining : _construction;
-
   final repo = ref.read(dataRepositoryProvider);
-  final fleet = await ref.read(mlClientProvider).getFleet(vs); // null if backend down
-  // Firestore reads can be denied (e.g. dashboard opened without auth); fall back
-  // to seed per-source instead of failing the whole load.
-  List<IncidentRecord> incidents = const [];
-  List<TrainingRecord> training = const [];
-  try {
-    incidents = await repo.readIncidents(vertical);
-  } catch (_) {}
-  try {
-    training = await repo.readTraining(vertical);
-  } catch (_) {}
 
-  final machines = fleet == null
-      ? seed.machines
-      : [
-          for (final m in fleet.machines)
-            Machine(m.id, m.type, m.operator, _status(m.status), m.phoneFed, m.alerts),
-        ];
-  final idleWeek = (fleet != null && fleet.idleWeek.length == 7) ? fleet.idleWeek : seed.idleWeek;
-  final incidentRows = incidents.isEmpty
-      ? seed.incidents
-      : [
-          for (final i in incidents)
-            IncidentRow(
-              i.kind ?? i.severity,
-              i.text,
-              i.machineId,
-              i.time,
-              operator: i.operatorId,
-              opId: i.operatorId,
-              location: i.location,
-              gps: i.gps,
-              // Live logs are voice observations; keep the transcript for detail.
-              transcript: (i.kind ?? i.severity) == 'observation' ? i.transcript : '',
-            ),
-        ];
-  final trainingRows = training.isEmpty ? seed.training : _aggregateTraining(training);
+  Future<_Site> load() async {
+    final fleet = await ref.read(mlClientProvider).getFleet(vs); // null if backend down
+    List<IncidentRecord> incidents = const [];
+    List<TrainingRecord> training = const [];
+    try {
+      incidents = await repo.readIncidents(vertical);
+    } catch (_) {}
+    try {
+      training = await repo.readTraining(vertical);
+    } catch (_) {}
 
-  return _Site(seed.name, machines, incidentRows, idleWeek, trainingRows);
+    final machines = fleet == null
+        ? seed.machines
+        : [
+            for (final m in fleet.machines)
+              Machine(m.id, m.type, m.operator, _status(m.status), m.phoneFed, m.alerts),
+          ];
+    final idleWeek = (fleet != null && fleet.idleWeek.length == 7) ? fleet.idleWeek : seed.idleWeek;
+    final incidentRows = incidents.isEmpty
+        ? seed.incidents
+        : [
+            for (final i in incidents)
+              IncidentRow(
+                i.kind ?? i.severity,
+                i.text,
+                i.machineId,
+                i.time,
+                operator: i.operatorId,
+                opId: i.operatorId,
+                location: i.location,
+                gps: i.gps,
+                // Live logs are voice observations; keep the transcript for detail.
+                transcript: (i.kind ?? i.severity) == 'observation' ? i.transcript : '',
+              ),
+          ];
+    final trainingRows = training.isEmpty ? seed.training : _aggregateTraining(training);
+    return _Site(seed.name, machines, incidentRows, idleWeek, trainingRows);
+  }
+
+  yield await load();
+  await for (final _ in Stream<void>.periodic(const Duration(seconds: 6))) {
+    yield await load();
+  }
 });
 
 MStatus _status(String s) => switch (s) {

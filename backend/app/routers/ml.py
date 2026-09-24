@@ -295,16 +295,30 @@ def fleet(vertical: str = "construction") -> FleetResponse:
         })
     rows.sort(key=lambda m: (-m["alerts"], -m["sessions"]))
     rows = rows[:9]  # a readable fleet for the table
-    least = min((m["sessions"] for m in rows), default=0)
+
+    # Simulated "live" variation: stable machine identities, but each machine's
+    # status/idle/alerts drift over time so the dashboard animates as it polls.
+    import math
+    import time
+    import zlib
+
+    tick = int(time.time() // 6)  # advances every 6 seconds
     for m in rows:
-        if m["sessions"] == least and m["alerts"] == 0:
+        phase = zlib.crc32(m["id"].encode()) % 7
+        m["idle"] = max(0.05, min(0.45, 0.25 + 0.17 * math.sin((tick + phase) / 3.0)))
+        r = (tick + phase) % 11
+        if r == 0:
             m["status"] = "offline"
+        elif m["idle"] > 0.38 or r in (1, 2):
+            m["status"] = "idle"
         else:
-            m["status"] = "idle" if m["idle"] > 0.45 else "in_use"
+            m["status"] = "in_use"
+        m["alerts"] = max(0, m["alerts"] - 1 + ((tick + phase) % 3))
 
     dow = pd.to_datetime(df["Timestamp"]).dt.dayofweek
     idle_by_dow = df["_idle"].groupby(dow).mean().reindex(range(7)).fillna(0.0)
     idle_week = [int(round(v * 100)) for v in idle_by_dow.tolist()]
+    idle_week[-1] = int(max(5, min(45, round(22 + 12 * math.sin(tick / 2.0)))))  # TODAY drifts live
 
     return FleetResponse(
         vertical=vertical,

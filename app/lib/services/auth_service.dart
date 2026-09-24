@@ -7,6 +7,10 @@ abstract class AuthService {
   /// Signs in and returns the operator's profile, or throws [AuthException].
   Future<OperatorUser> signIn(String username, String password);
 
+  /// The already-signed-in operator (persisted auth session), or null. Used to
+  /// restore the session on app restart so progress isn't lost.
+  Future<OperatorUser?> currentUser();
+
   Future<void> signOut();
 }
 

@@ -209,18 +209,12 @@ class FrameMotionTracker {
   /// Whole-frame search for the densest cluster of target-hue cells. Returns an
   /// image-space seed, or null if no convincing blob is present.
   Offset? _autoAcquire(CameraImage image) {
-    final w = image.width, h = image.height;
-    final plane = image.planes.first;
-    final bytes = plane.bytes;
-    final bpr = plane.bytesPerRow;
-    final isBgra = image.format.group == ImageFormatGroup.bgra8888;
-
     final mxs = <double>[], mys = <double>[];
     for (var r = 0; r < rows; r++) {
       final ny = (r + 0.5) / rows;
       for (var c = 0; c < cols; c++) {
         final nx = (c + 0.5) / cols;
-        final (pr, pg, pb) = _rgbAt(bytes, bpr, isBgra, w, h, nx, ny);
+        final (pr, pg, pb) = _sampleRgb(image, nx, ny);
         final (hue, sat, val) = _rgb2hsv(pr, pg, pb);
         if (sat < _satMin || val < _valMin) continue;
         if (_hueDiff(hue, _refHue) > _hueTol) continue;
@@ -264,11 +258,6 @@ class FrameMotionTracker {
     Offset est,
     double win,
   ) {
-    final w = image.width, h = image.height;
-    final plane = image.planes.first;
-    final bytes = plane.bytes;
-    final bpr = plane.bytesPerRow;
-    final isBgra = image.format.group == ImageFormatGroup.bgra8888;
     final win2 = win * win;
 
     var sumX = 0.0, sumY = 0.0, count = 0;
@@ -281,7 +270,7 @@ class FrameMotionTracker {
         final nx = (c + 0.5) / cols;
         final dx = nx - est.dx;
         if (dx * dx + dy * dy > win2) continue;
-        final (pr, pg, pb) = _rgbAt(bytes, bpr, isBgra, w, h, nx, ny);
+        final (pr, pg, pb) = _sampleRgb(image, nx, ny);
         final (hue, sat, val) = _rgb2hsv(pr, pg, pb);
         if (sat < _satMin || val < _valMin) continue;
         if (_hueDiff(hue, _refHue) > _hueTol) continue;
@@ -304,17 +293,12 @@ class FrameMotionTracker {
 
   /// Coarse frame-differencing: image-space centroid of motion + 0–1 energy.
   (Offset?, double) _computeMotion(CameraImage image) {
-    final w = image.width, h = image.height;
-    final plane = image.planes.first;
-    final bytes = plane.bytes;
-    final bpr = plane.bytesPerRow;
-    final isBgra = image.format.group == ImageFormatGroup.bgra8888;
     final grid = List<double>.filled(cols * rows, 0);
     for (var r = 0; r < rows; r++) {
       final ny = (r + 0.5) / rows;
       for (var c = 0; c < cols; c++) {
         final nx = (c + 0.5) / cols;
-        final (pr, pg, pb) = _rgbAt(bytes, bpr, isBgra, w, h, nx, ny);
+        final (pr, pg, pb) = _sampleRgb(image, nx, ny);
         grid[r * cols + c] = 0.299 * pr + 0.587 * pg + 0.114 * pb;
       }
     }
@@ -386,24 +370,45 @@ class FrameMotionTracker {
 
   // ---- pixel access ----
 
-  (double, double, double) _rgbAt(
-    List<int> bytes,
-    int bpr,
-    bool isBgra,
-    int w,
-    int h,
-    double nx,
-    double ny,
-  ) {
+  /// Sample an RGB pixel at normalised (nx, ny). Handles both iOS BGRA8888 and
+  /// Android YUV_420_888 (luma Y + subsampled chroma U/V planes) — the latter is
+  /// what the Android camera actually delivers even when bgra8888 is requested,
+  /// so colour tracking now works on Android instead of seeing grayscale.
+  (double, double, double) _sampleRgb(CameraImage image, double nx, double ny) {
+    final w = image.width, h = image.height;
     final ix = (nx * w).floor().clamp(0, w - 1);
     final iy = (ny * h).floor().clamp(0, h - 1);
-    final idx = iy * bpr + ix * (isBgra ? 4 : 1);
-    if (isBgra) {
-      if (idx + 2 >= bytes.length) return (0, 0, 0);
-      return (bytes[idx + 2].toDouble(), bytes[idx + 1].toDouble(),
-          bytes[idx].toDouble());
+    final group = image.format.group;
+
+    if (group == ImageFormatGroup.bgra8888) {
+      final p = image.planes.first;
+      final idx = iy * p.bytesPerRow + ix * 4;
+      if (idx + 2 >= p.bytes.length) return (0, 0, 0);
+      return (p.bytes[idx + 2].toDouble(), p.bytes[idx + 1].toDouble(), p.bytes[idx].toDouble());
     }
-    final v = idx < bytes.length ? bytes[idx].toDouble() : 0.0;
-    return (v, v, v);
+
+    if (group == ImageFormatGroup.yuv420 && image.planes.length >= 3) {
+      final yP = image.planes[0], uP = image.planes[1], vP = image.planes[2];
+      final uvStride = uP.bytesPerPixel ?? 1; // 2 for semi-planar (NV21), 1 for planar
+      final yIdx = iy * yP.bytesPerRow + ix;
+      final uIdx = (iy >> 1) * uP.bytesPerRow + (ix >> 1) * uvStride;
+      final vIdx = (iy >> 1) * vP.bytesPerRow + (ix >> 1) * uvStride;
+      if (yIdx >= yP.bytes.length || uIdx >= uP.bytes.length || vIdx >= vP.bytes.length) {
+        return (0, 0, 0);
+      }
+      final yv = yP.bytes[yIdx].toDouble();
+      final u = uP.bytes[uIdx].toDouble() - 128.0;
+      final v = vP.bytes[vIdx].toDouble() - 128.0;
+      final r = (yv + 1.370705 * v).clamp(0.0, 255.0);
+      final g = (yv - 0.337633 * u - 0.698001 * v).clamp(0.0, 255.0);
+      final b = (yv + 1.732446 * u).clamp(0.0, 255.0);
+      return (r, g, b);
+    }
+
+    // Fallback: single-plane grayscale.
+    final p = image.planes.first;
+    final idx = iy * p.bytesPerRow + ix;
+    final val = idx < p.bytes.length ? p.bytes[idx].toDouble() : 0.0;
+    return (val, val, val);
   }
 }
