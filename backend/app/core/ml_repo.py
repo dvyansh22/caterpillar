@@ -1,9 +1,9 @@
 """Make the repo's `ml/` package (generators, catalog, model serving) importable from the backend.
 
 Locally the backend runs from the monorepo, so `ml/` sits next to `backend/`. Override with
-ML_REPO_ROOT if the layout differs.
-TODO(P1): the Dockerfile builds from backend/ only; copy ml/ (code + models/) into the image
-before deploying to Cloud Run, otherwise /ml/estimate serves the stub and /sim returns 503.
+ML_REPO_ROOT if the layout differs; the root `Dockerfile` copies `ml/` next to the app and sets it.
+`backend/Dockerfile` copies only `app/`, so an image built from it serves the /ml/estimate stub and
+/sim returns 503. Deploy with the root `Dockerfile` instead.
 """
 
 from __future__ import annotations
