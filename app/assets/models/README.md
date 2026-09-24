@@ -1,40 +1,31 @@
 # On-device TFLite models
 
 **Owner of the wiring:** P3 · **Owner of the model files:** P2
-**Contract:** TFLite tensor specs (AGENTS.md interface contract #3).
+**Contract:** TFLite tensor specs (AGENTS.md interface contract #3). The source of truth is
+[`ml/ondevice/README.md`](../../../ml/ondevice/README.md) + `ml/models/*.json`.
 
-Drop P2's exported `.tflite` files here:
+P2's exported models live in `ml/models/` (committed). Copy them here to bundle them with the app:
 
-| File | Purpose | Runs |
+| File (in `ml/models/`) | Purpose | Input → output |
 |---|---|---|
-| `seatbelt.tflite` | Seatbelt fastened / unfastened | On-device |
-| `fatigue.tflite`  | Drowsiness (PERCLOS-style) | On-device |
-| `acoustic.tflite` | Abnormal engine-sound detection | On-device |
+| `seatbelt.tflite` | Seatbelt on / off | `image` [1,224,224,3] float32 RGB 0–255 → `p_belt` [1,1] P(seatbelt on), threshold 0.5 |
+| `acoustic_anomaly.tflite` | Abnormal engine sound | `audio` [1,16000] float32 (1 s mono 16 kHz, −1..1) → `score` [1] reconstruction error, threshold 0.0906 |
 
-Paths are already referenced by `AppConstants` (`lib/core/config.dart`) and
-`SafetyModelInfo.assetPath` (`lib/services/on_device/safety_models.dart`).
+**Fatigue has no TFLite file.** It uses a pre-trained face model (ML Kit / MediaPipe eye-open
+probability and head pose) plus the scorer in `ml/ondevice/fatigue.py`, which is to be ported to Dart.
 
-## Expected tensor spec (fill in with P2's real values)
+## Before wiring these in (known gaps)
+- **Acoustic file name.** `AppConstants.acousticModelPath` (`lib/core/config.dart`) uses
+  `acoustic_anomaly.tflite`, but `SafetyModelInfo.assetPath` (`lib/services/on_device/safety_models.dart`)
+  expects `acoustic.tflite`. Pick one; P2's file is `acoustic_anomaly.tflite`.
+- **Not bundled yet.** `pubspec.yaml` has no `flutter: assets:` entry for `assets/models/`, so files
+  dropped here are not packaged until you add it.
 
-P2 must document, per model:
+## Enabling real inference
+Today the app uses `HeuristicSafetyInferenceService` (a heuristic over camera frame features).
+To switch, follow the TODO in `lib/services/on_device/safety_inference_service.dart`:
+1. Add `tflite_flutter`.
+2. Load the interpreters in `warmUp()`.
+3. Construct `TfliteSafetyInferenceService` in `on_device_providers.dart`.
 
-```
-seatbelt:
-  input:  [1, H, W, 3] float32, RGB, normalised 0–1   # e.g. 224x224
-  output: [1, 2] float32 softmax → [unfastened, fastened]
-fatigue:
-  input:  [1, H, W, 1] float32 grayscale eye-crop
-  output: [1, 1] float32 → drowsiness 0–1
-acoustic:
-  input:  [1, N] float32 log-mel frames
-  output: [1, 1] float32 → anomaly 0–1
-```
-
-## Enabling the real backend
-Until these files land, the app uses `HeuristicSafetyInferenceService`
-(a genuine on-device pipeline over frame features). To switch to real
-inference, follow the TODO in
-`lib/services/on_device/safety_inference_service.dart`:
-add `tflite_flutter`, load the interpreters in `warmUp()`, and construct
-`TfliteSafetyInferenceService` in `on_device_providers.dart`. No screen or
-provider consumer changes are required — the interface is stable.
+No screen or provider consumer changes are needed; the interface is stable.

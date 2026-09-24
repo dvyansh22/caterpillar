@@ -2,23 +2,30 @@
 
 **Owners:** P1 / P2
 
-Datasets, the synthetic-data generator, and model training. Trained models are exported for serving
-by `backend/` (cloud) or embedded on-device (TFLite) by the app.
+Datasets, the synthetic-data generator, model training, and the shared code that serves the models.
+Trained models are served by `backend/` (cloud) or embedded on-device (TFLite) by the app.
 
 ## Structure
 ```
 data/
 ├── raw/         # organizer-provided sample data (telematics_sample.csv, task_history_sample.csv)
 ├── synthetic/   # generated rows (git-ignored)
-└── schemas/     # frozen column definitions (the data contract) — start at data/schemas/README.md
-generators/      # synthetic data generator (P1)
-training/        # task_time (P1); anomaly, safety, maintenance, acoustic (P2)
-models/          # exported .pkl / .joblib / .tflite (git-ignored)
-notebooks/       # exploration / evaluation
+├── schemas/     # the data contract; start at data/schemas/README.md
+└── manuals/     # machine-manual corpus for RAG (P2)
+generators/      # synthetic data generator, catalog (enums, specs, shared anomaly limits), schema validator (P1)
+features/        # conditions engine (heat/visibility/wet ground) + weather simulation / Open-Meteo client (P1)
+serving/         # task_time.py: features + estimator used by training and /ml/estimate (P1)
+training/        # train_task_time.py (P1); anomaly.py, risk.py (safety + maintenance), acoustic.py,
+                 #   seatbelt.py, seatbelt_frames.py, augment.py, p2_dev_data.py (P2)
+ondevice/        # fatigue scorer + on-device model spec (P2)
+models/          # *.joblib git-ignored; seatbelt.tflite, acoustic_anomaly.tflite (+ .json specs) committed
+tests/           # pytest: generator, conditions, task-time, fatigue, seatbelt frames
+notebooks/       # exploration / evaluation (empty)
 ```
 
 ## Data contract
-**Schema v1.0 is frozen.** See [`data/schemas/README.md`](data/schemas/README.md) and
+Dataset B (tasks) is at **schema v1.1**, which added weather columns. Dataset A (telematics) and the
+reference tables are at **v1.0**. See [`data/schemas/README.md`](data/schemas/README.md) and
 [`docs/SRS.md` §6](../docs/SRS.md#6-data-requirements) for every column, unit, enum and target.
 The generator writes `telematics`, `tasks`, `sites`, `machines`, `operators`, `task_standards` CSVs to `data/synthetic/`.
 
@@ -32,11 +39,13 @@ The generator writes `telematics`, `tasks`, `sites`, `machines`, `operators`, `t
 ## Models (map to expected outcomes)
 | Model | Owner | Type |
 |---|---|---|
-| Task-time estimation | P1 | XGBoost regressor |
-| Anomaly / idling / unsafe | P2 | IsolationForest / classifier |
-| Safety-alert prediction | P2 | Binary classifier |
-| Predictive maintenance | P2 | Classifier / regressor |
-| Seatbelt / fatigue / acoustic | P2 | TFLite (on-device) |
+| Task-time estimation | P1 | XGBoost regressor on log(actual / planner estimate), with weather-condition features (`xgb-v2`) |
+| Anomaly / idling / unsafe / fuel / overheat | P2 | XGBoost multi-class + rule reasons |
+| Safety-alert prediction | P2 | Binary XGBoost + rules |
+| Predictive maintenance | P2 | Binary XGBoost + rules |
+| Seatbelt | P2 | MobileNetV3-Small classifier → TFLite (on-device) |
+| Engine sound | P2 | Log-mel autoencoder → TFLite (on-device) |
+| Fatigue | P2 | Pre-trained face model (ML Kit / MediaPipe) + rule scorer (`ondevice/fatigue.py`); no TFLite file |
 
 ## Run (Python 3.12, from the repo root)
 ```
@@ -71,11 +80,14 @@ training and serving. The per-machine-type speed limits and fuel norms come from
 `generators/catalog.py` (`anomaly_limits`, `fuel_ratio`), the same numbers the generator labels with.
 `backend/tests/test_shared_limits.py` fails if the two ever disagree.
 ```
+cd ml
 python generators/generate.py                                # -> data/synthetic/telematics.csv (P1)
 python training/anomaly.py                                   # -> models/anomaly.joblib
 python training/risk.py                                      # -> models/{safety,maintenance}.joblib
 python training/p2_dev_data.py --rows 20000                  # optional stand-in -> telematics_p2dev.csv
 ```
+These `.joblib` files are git-ignored and not built into the Docker image, so a fresh clone or the
+deployed service serves these three endpoints in rules-only mode until they are trained.
 The backend loads `ml/models/{anomaly,safety,maintenance}.joblib` (override with
 `ANOMALY_MODEL_PATH`, `SAFETY_MODEL_PATH`, `MAINTENANCE_MODEL_PATH`). If a file is missing, that
 endpoint falls back to the schema rules alone (`model_version: rules-1`). All three endpoints take

@@ -4,6 +4,29 @@
 > **complete technical design** — every subsystem, the exact tech used, and what each piece does.
 > Timeline/task-splitting is at the end; this is a design doc, not a schedule.
 
+## As built vs. designed (status: September 2026)
+This document is the original design. Where the implementation differs, this table is the
+current truth. [`FEATURES.md`](FEATURES.md) lists what works today.
+
+| Area | Designed | As built |
+|---|---|---|
+| Backend hosting | Cloud Run, Firebase ID-token auth, Admin SDK | One Docker image from the repo root (`Dockerfile`, bakes the ETA model) on Hugging Face Spaces / Render. Public API, CORS `*`, **no auth yet**. |
+| Endpoints | `/ml/estimate`, `/ml/anomaly`, `/rag/query`, `/voice/nlu`, `/sim/generate`, `/signal` | Those minus `/signal` (planned), plus `/ml/safety`, `/ml/maintenance`, `/ml/fleet`, `/health` |
+| Task-time model | XGBoost + OpenWeatherMap | XGBoost on log(actual/estimate) + **Open-Meteo** live weather → conditions engine (heat stress WBGT, visibility, wet ground), factors, advisories, best start (`ml/features/`) |
+| Anomaly / idle / fuel | IsolationForest | XGBoost multi-class + rule reasons; safety + maintenance are binary XGBoost + rules; per-machine limits shared with the generator (`ml/generators/catalog.py`) |
+| Seatbelt | BlazePose (pre-trained) | Trained MobileNetV3-Small classifier → `ml/models/seatbelt.tflite` (the app still runs a heuristic) |
+| Fatigue | Face TFLite | Pre-trained face model (ML Kit / MediaPipe) + rule scorer (`ml/ondevice/fatigue.py`); no TFLite file |
+| Acoustic | MFCC + INT8 CNN/AE | Log-mel autoencoder in the TFLite graph, float16 weights (`acoustic_anomaly.tflite`); synthetic training data |
+| RAG | Qdrant/ChromaDB co-deployed, Gemini/Claude | In-memory Qdrant + multilingual sentence-transformers, TF-IDF fallback, Gemini only (`backend/app/core/rag.py`) |
+| Synthetic data | → Firestore/BigQuery | CSVs in `ml/data/synthetic/` (git-ignored); `/sim/generate` returns a sample |
+| App navigation / state | GoRouter, role-based routing | Riverpod `NavController` (phase/tab enums); no roles in the UI |
+| Offline store | Isar + sync queue | Not implemented; Firestore writes are fire-and-forget, seed data as the fallback |
+| Voice ASR | sherpa-onnx SenseVoice/Paraformer | sherpa-onnx **Whisper tiny** (en/hi/ta, one-time download) on mobile; browser speech on web |
+| SOS / proximity (BLE) | flutter_blue_plus + Nearby Connections mesh | UI flow with a **simulated** relay; no BLE packages yet |
+| Safety gate | seatbelt from data + camera | UI flow with **simulated** checks (timers) |
+| AR | Unity via flutter_unity_widget | Camera + frame-differencing motion tracker in Flutter; Unity scripts in `ar/`, not embedded |
+| Firebase | Auth/Firestore/Storage/FCM/Functions, custom-claim roles | Auth (email/password, anonymous on web) + Firestore + Storage rules; no FCM, no Functions, no claims set |
+
 ---
 
 ## 1. Context
@@ -197,17 +220,19 @@ construction/excavator-flavored.
 
 ### 5.2 Synthetic telematics generator (`/sim`)
 - Python NumPy+Faker script generating realistic per-machine time-series (engine hrs, fuel burn,
-  idle %, location tracks, fault-code injections) seeded from real Cat spec ranges. Populates
-  Firestore/BigQuery to (a) train ML models and (b) fill the owner dashboard for the demo.
+  idle %, location tracks, fault-code injections) seeded from real Cat spec ranges. Writes CSVs to
+  `ml/data/synthetic/` to (a) train ML models and (b) feed the owner dashboard (`/ml/fleet`).
   **This is how we satisfy "assumed data" without needing any dataset from Caterpillar.**
 
 ### 5.3 ML models
 | Model | Type | Serving | Trained on |
 |---|---|---|---|
-| Task-time estimation | XGBoost regressor | FastAPI `/ml/estimate` | Synthetic history + weather |
-| Anomaly / unsafe pattern | IsolationForest | FastAPI `/ml/anomaly` | Synthetic telematics |
-| Seatbelt / fatigue | BlazePose + face TFLite | On-device | Pre-trained (no data needed) |
-| Acoustic engine fault | MFCC + INT8 CNN/AE | On-device TFLite | Synthetic + public engine-sound sets |
+| Task-time estimation | XGBoost regressor + conditions engine | FastAPI `/ml/estimate` | Synthetic history + simulated site weather |
+| Anomaly / unsafe pattern | XGBoost multi-class + rules | FastAPI `/ml/anomaly` | Synthetic telematics |
+| Safety alert / maintenance | Binary XGBoost + rules | FastAPI `/ml/safety`, `/ml/maintenance` | Synthetic telematics |
+| Seatbelt | MobileNetV3-Small → TFLite | On-device | Seatbelt photos (from short videos) |
+| Fatigue | Pre-trained face model + rule scorer | On-device | No training needed |
+| Acoustic engine fault | Log-mel autoencoder → TFLite | On-device | Synthetic engine sounds |
 | Repair Q&A | RAG (embeddings + Gemini) | FastAPI `/rag` | Machine manuals corpus |
 
 ### 5.4 Dataset expansion & ML-per-outcome (organizer data is only a seed)
@@ -216,7 +241,7 @@ The two given tables have too few columns/rows to train real models, so `/sim` *
 more columns and thousands of rows that preserve realistic relationships. Every "expected outcome" in
 the problem statement gets a dedicated ML treatment.
 
-> **Frozen schema v1.0** — units, enums, nullability, keys and ground-truth rules are defined in
+> **Schemas: Dataset A v1.0, Dataset B v1.1** — units, enums, nullability, keys and ground-truth rules are defined in
 > [`SRS.md` §6](SRS.md#6-data-requirements) and [`ml/data/schemas/`](../ml/data/schemas/). The lists
 > below are the column names only.
 
@@ -231,11 +256,11 @@ Rows with `DataSource=Phone` (non-telematics machines) leave the engine-sensor c
 | Expected outcome | ML approach | Key features |
 |---|---|---|
 | Seatbelt compliance | Rule + trend classifier | SeatbeltStatus over time |
-| Excessive idling | Threshold + IsolationForest | IdlingTime, LoadCycles |
+| Excessive idling | Rules + XGBoost (anomaly model) | IdlingTime, LoadCycles |
 | Unsafe operation patterns | Classifier (Random Forest/XGBoost) | HarshEvents, MaxSpeed_kmh, ProximityWarnings |
 | Safety-alert prediction | Binary classifier (target: SafetyAlertTriggered) | Seatbelt + Idling + Harsh |
 | Predictive maintenance | Classifier/regressor (target: MaintenanceDue) | HoursSinceService, EngineTemp_C, RPM, HydraulicPressure_bar, FaultCode |
-| Fuel-efficiency anomaly | IsolationForest | FuelUsed vs LoadCycles |
+| Fuel-efficiency anomaly | Rules + XGBoost (`FuelAnomaly` class) | FuelUsed vs LoadCycles (shared per-type norms) |
 | Fatigue | On-device vision → FatigueScore label + HoursSinceBreak | camera + shift length |
 
 **Dataset B — Task history (one row per completed task):**
@@ -250,23 +275,29 @@ OperatorExpHours, LoadVolume_m3, HaulDistance_m, TimeOfDay, EstimatedTime_min, A
 `SiteID/MachineID/OperatorID`, so both datasets describe one consistent fleet. See SRS §6.5.
 
 **Synthetic generation:** Python (NumPy + Faker) encodes the real relationships seen in the samples
-(e.g. beginner + rain → +15–30% overrun; unfastened + high idle → alert) plus noise, generating both
-construction and mining rows in these exact schemas. Output → Firestore/BigQuery for training + the
-dashboard.
+(e.g. beginners ×1.15–1.35, plus extra time in rain / low visibility / heat; unfastened + high idle
+→ alert) plus noise, generating both construction and mining rows in these exact schemas. Task
+weather is simulated from per-site climate profiles. Output → CSVs in `ml/data/synthetic/` for
+training and the dashboard.
 
 ---
 
-## 6. Backend (FastAPI on Cloud Run)
-- Endpoints: `/ml/estimate`, `/ml/anomaly`, `/rag/query`, `/voice/nlu`, `/sim/generate`,
-  `/signal` (WebRTC signaling over WebSocket).
-- Uses **Firebase Admin SDK** to read/write Firestore securely; verifies Firebase ID tokens on
-  every request for auth. Vector DB (Qdrant or ChromaDB) co-deployed; LLM via Gemini/Claude API.
+## 6. Backend (FastAPI)
+- Endpoints (as built):
+  - `/health`, `/ml/estimate`, `/ml/anomaly`, `/ml/safety`, `/ml/maintenance`, `/ml/fleet`;
+  - `/rag/query`, `/voice/nlu`, `/sim/generate`;
+  - `/signal` (WebRTC signaling over WebSocket) is planned.
+- Deployed as one Docker image from the repo root (Hugging Face Spaces / Render).
+- *Designed, not yet built:* the **Firebase Admin SDK** and Firebase ID-token verification on every
+  request. The API is public for now.
+- RAG uses an in-memory Qdrant (TF-IDF fallback) and Gemini.
 
 ---
 
 ## 7. Offline-First & Sync
-- Firestore offline persistence + Isar local cache; a **sync queue** flushes incidents, behavior
-  flags, and task updates when connectivity returns (job sites have poor coverage — big credibility
+- *Designed:* Firestore offline persistence + Isar local cache; a **sync queue** flushes incidents,
+  behavior flags, and task updates when connectivity returns. *As built:* no Isar or queue yet. The
+  app falls back to seed data and voice capture works on device (job sites have poor coverage — big credibility
   point). All safety detection (vision/IMU/BLE/acoustic) runs fully on-device, so safety never
   depends on the network.
 
@@ -769,23 +800,27 @@ caterpillar/
 ├── app/                       # P4 (UI/backend) + P3 (AR bridge, ML wiring) — Flutter
 │   ├── lib/
 │   │   ├── main.dart
-│   │   ├── core/              # theme, router, config, vertical switch
-│   │   ├── features/          # auth, safety_gate, tasks, voice_log,
-│   │   │                      #   learning_hub, sos, safety, profile
-│   │   ├── services/          # firebase, ble, ml_client, ar_bridge, sync
-│   │   └── models/
+│   │   ├── core/              # theme, nav (NavController), config, app_state
+│   │   ├── features/          # auth, safety_gate, welcome, tasks, learning_hub, sos, profile,
+│   │   │                      #   dashboard, shell (voice_log/, safety/ are empty placeholders)
+│   │   ├── services/          # ml_client, voice, on_device, ar_bridge, auth + data repositories
+│   │   └── data/              # models + mock/seed data
 │   ├── assets/  ├── test/  └── pubspec.yaml
-├── ar/                        # P3 — Unity AR Foundation project
-├── backend/                   # P1/P2 — FastAPI AI service (Cloud Run)
-│   ├── app/ (main.py, routers/{ml,rag,voice,sim,signal}, schemas/, core/)
-│   ├── requirements.txt └── Dockerfile
-├── ml/                        # P1/P2 — data + model training
-│   ├── data/{raw,synthetic,schemas}
-│   ├── generators/            # synthetic data generator
-│   ├── training/              # task_time, anomaly, safety, maintenance, acoustic
-│   ├── models/                # exported .pkl / .tflite
-│   ├── notebooks/  └── requirements.txt
-├── firebase/                  # P4 — rules, indexes, functions, firebase.json
+├── ar/                        # P3 — Unity AR Foundation scripts + PROTOCOL.md
+├── backend/                   # P1/P2 — FastAPI AI service
+│   ├── app/ (main.py, routers/{ml,rag,voice,sim}, core/{anomaly,risk,rag,ml_repo,config}, schemas/ empty)
+│   ├── requirements.txt / -dev.txt / -deploy.txt └── Dockerfile (backend-only; use the root Dockerfile)
+├── ml/                        # P1/P2 — data, models, shared ML code
+│   ├── data/{raw,synthetic,schemas,manuals}
+│   ├── generators/            # synthetic data generator, catalog, schema validator
+│   ├── features/              # conditions engine + weather (Open-Meteo)
+│   ├── serving/               # task-time estimator shared with the backend
+│   ├── training/              # train_task_time, anomaly, risk, acoustic, seatbelt(_frames), augment, p2_dev_data
+│   ├── ondevice/              # fatigue scorer + on-device model spec
+│   ├── models/                # .joblib (git-ignored), .tflite + .json specs
+│   ├── tests/  ├── notebooks/  └── requirements.txt
+├── firebase/                  # P4 — rules, indexes, seed.js, firebase.json (functions/ placeholder)
+├── deploy/, Dockerfile, render.yaml   # backend image for HF Spaces / Render
 └── .github/workflows/         # CI
 ```
 

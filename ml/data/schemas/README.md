@@ -1,9 +1,16 @@
-# Data Schema v1.0 (frozen)
+# Data Schemas: telematics v1.0 · tasks v1.1 · reference v1.0
 
 **Owner:** P1 · **Consumers:** P2 (Dataset A models), P4 (Firestore/dashboard), P1 (task-time model).
 **The full column tables are in [`docs/SRS.md` §6](../../../docs/SRS.md#6-data-requirements).** They are
 the canonical human-readable spec. The JSON files here hold the same schema in machine-readable form.
-Changing a column requires sign-off from P2 and P4 and a major version bump.
+Versioning:
+- **Additive changes** (new columns) bump the minor version.
+- **Breaking changes** (renames, removals, meaning changes) bump the major version and need sign-off
+  from P2 and P4.
+
+**Tasks v1.1** added `StartHour`, `Humidity_pct`, `Visibility_m` and `Precip_mm_h` (weather over the
+task window, used by the conditions engine in `ml/features/`). It also raised the `ActualTime_min`
+cap to 2880 min. Dataset A is unchanged.
 
 ## Files
 | File | Describes | Output file (generated) |
@@ -12,13 +19,14 @@ Changing a column requires sign-off from P2 and P4 and a major version bump.
 | `tasks.schema.json` | Dataset B: one row per completed task | `data/synthetic/tasks.csv` |
 | `reference.schema.json` | `sites`, `machines`, `operators`, `task_standards` | `data/synthetic/<table>.csv` |
 
-Each column entry has `name, type, unit, range|allowed, nullable, role` (`key | feature | baseline | target`)
-and a `description`. `generation_rules` lists the relationships the generator follows. These are
+Each column entry has `name, type, nullable, role` (`key | feature | baseline | target`) and a
+`description`. Depending on the type, an entry also has `unit`, `range`, `allowed` / `allowed_ref`,
+`pattern` or `format`. `generation_rules` lists the relationships the generator follows. These are
 the patterns the models should learn.
 
 ## Conventions
 - CSV, UTF-8, header row. A missing value is an **empty cell**. Timestamps are `YYYY-MM-DD HH:MM:SS`.
-- Numeric columns carry a unit suffix (`_min`, `_L`, `_kmh`, `_C`, `_bar`, `_m3`, `_m`, `_t`, `_deg`, `_yrs`).
+- Numeric columns carry a unit suffix (`_min`, `_L`, `_kmh`, `_C`, `_bar`, `_m3`, `_m`, `_t`, `_deg`, `_yrs`, `_pct`, `_mm_h`).
 - Booleans/flags use the organizer style: `Yes|No`, `Fastened|Unfastened`.
 - `MachineID`, `OperatorID` and `SiteID` join every table, so the datasets describe one consistent fleet.
 - The organizer CSVs in `data/raw/` are valid rows of this schema; they just have the new columns blank.
@@ -53,5 +61,4 @@ df = pd.read_csv("ml/data/synthetic/telematics.csv", parse_dates=["Timestamp"],
 y = (df["SafetyAlertTriggered"] == "Yes").astype(int)
 ```
 
-Until the generator lands, you can build against the 4 organizer rows in `data/raw/telematics_sample.csv`
-and the column list above.
+Generate the data with `python ml/generators/generate.py` (about 5 s; seed 42 by default).

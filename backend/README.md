@@ -2,19 +2,30 @@
 
 **Owners:** P1 / P2
 
-The cloud "AI brain." Stateless FastAPI service (deploy to Cloud Run) that serves ML inference, RAG,
-voice NLU, synthetic-data generation, and WebRTC signaling. Verifies Firebase ID tokens on every
-request and uses the Firebase Admin SDK for Firestore access.
+The cloud "AI brain." A stateless FastAPI service that serves ML inference, RAG, voice NLU and
+synthetic data. It is deployed as one Docker image built from the repo root (`../Dockerfile`, which
+also copies `ml/` and bakes the task-time model) on Hugging Face Spaces or Render.
 
-## Endpoints (freeze the JSON contract in Phase 0 — ship stubs first)
+It is a public API: CORS is open (`*`) and there is no auth yet. Firebase ID-token verification and
+WebRTC signaling (`/signal`) are planned.
+
+## Endpoints
 | Route | Purpose | Owner |
 |---|---|---|
-| `POST /ml/estimate` | Task-time estimation (XGBoost) | P1 |
-| `POST /ml/anomaly` | Unusual-behavior / anomaly scoring | P2 |
-| `POST /rag/query` | Repair-manual Q&A (RAG + LLM) | P2 |
-| `POST /voice/nlu` | Voice intent → response (LLM) | P2 |
-| `POST /sim/generate` | Generate synthetic telematics/task rows | P1 |
-| `WS  /signal` | WebRTC signaling for tele-mentoring | P3 |
+| `GET  /health` | Liveness check | — |
+| `POST /ml/estimate` | Task-time estimation (XGBoost; weather + location aware) | P1 |
+| `POST /ml/anomaly` | Unusual-behavior scoring (XGBoost multi-class + rule reasons) | P2 |
+| `POST /ml/safety` | Safety-alert prediction (XGBoost + rules), same session body as `/ml/anomaly` | P2 |
+| `POST /ml/maintenance` | Predictive maintenance (XGBoost + rules), same session body | P2 |
+| `GET  /ml/fleet?vertical=` | Fleet snapshot for the owner dashboard, aggregated from generated (labelled) telematics | P4 |
+| `POST /rag/query` | Repair-manual Q&A (retrieval + Gemini, or extractive without a key) | P2 |
+| `POST /voice/nlu` | Voice transcript → intent (regex commands) or RAG answer | P2 |
+| `POST /sim/generate` | Synthetic telematics/task rows (count + 20-row sample) | P1 |
+| `WS  /signal` | WebRTC signaling for tele-mentoring — **planned, not implemented** | P3 |
+
+Model files (`ml/models/*.joblib`) are git-ignored. Without them, each endpoint falls back:
+- `/ml/estimate` returns the planner baseline (`baseline-0`), or `stub-0` if `ml/` isn't deployed;
+- `/ml/anomaly`, `/ml/safety` and `/ml/maintenance` use rules only (`rules-1`).
 
 ### `/ml/estimate` v1.1: weather + location (for P3's `ml_client`; all additions optional)
 Old requests work unchanged and still get `estimated_minutes`, `baseline_minutes` and `model_version`.
@@ -34,20 +45,31 @@ With a location, the backend fetches the Open-Meteo forecast (free, no key, 3 s 
 in memory). If it can't reach the API, it uses typical weather for the site; the request never fails
 because of weather. Examples are on `/docs`.
 
-## Run
+## Run (from `backend/`, Python 3.12)
 ```
-pip install -r requirements.txt
-uvicorn app.main:app --reload
+pip install -r requirements.txt          # full: + RAG (qdrant, sentence-transformers), Gemini, firebase-admin
+uvicorn app.main:app --reload            # http://127.0.0.1:8000/docs
 ```
-Local settings (Gemini key, retriever choice) go in `backend/.env` — copy `.env.example`. Without a
-key, `/rag/query` and `/voice/nlu` still answer by quoting the best manual section from
-`ml/data/manuals/`. Tests: `pip install -r requirements-dev.txt && pytest -q`.
+- **Lean install:** `requirements-deploy.txt` is what the Docker image uses. RAG then runs in
+  TF-IDF / extractive mode.
+- **Train the models first** (from the repo root):
+  - `python ml/generators/generate.py && python ml/training/train_task_time.py`
+  - P2's models: `cd ml && python training/anomaly.py && python training/risk.py`
+- **Local settings** (Gemini key, retriever choice) go in `backend/.env`; copy `.env.example`.
+  Without a key, `/rag/query` and `/voice/nlu` still answer by quoting the best manual section from
+  `ml/data/manuals/`.
+- **Tests:** `pip install -r requirements-dev.txt && pytest -q`.
+
+`backend/Dockerfile` copies only `app/`, so an image built from it serves stubs. Use the root
+`Dockerfile` instead.
 
 ## Structure
 ```
 app/
-├── main.py            # FastAPI app + router registration
-├── routers/           # ml.py, rag.py, voice.py, sim.py, signal.py
-├── schemas/           # pydantic request/response models (the API contract)
-└── core/              # config, firebase admin, auth dependency
+├── main.py            # FastAPI app, CORS, router registration (+ .env loading)
+├── routers/           # ml.py (estimate/anomaly/safety/maintenance/fleet), rag.py, voice.py, sim.py
+│                      #   (pydantic request/response models live in each router = the API contract)
+├── schemas/           # empty placeholder
+└── core/              # config.py (.env loader), ml_repo.py (makes ml/ importable),
+                       # anomaly.py + risk.py (P2 rules, features, model loading), rag.py (retriever + Gemini)
 ```

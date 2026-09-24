@@ -18,7 +18,9 @@ then train), so there is no runtime training and no external data dependency.
 Endpoints:
 - `GET  /health`
 - `POST /ml/estimate` — task-time ETA + factors, advisories, best-start
-- `POST /ml/anomaly` `/ml/safety` `/ml/maintenance` — session scoring
+- `POST /ml/anomaly` `/ml/safety` `/ml/maintenance` — session scoring (rules-only unless P2's model files are added)
+- `GET  /ml/fleet?vertical=` — fleet view for the owner dashboard
+- `POST /rag/query`, `POST /voice/nlu` — manual Q&A (lightweight TF-IDF / extractive mode in this image)
 - `POST /sim/generate` — synthetic rows in the dataset schema
 
 Interactive docs at `/docs`.

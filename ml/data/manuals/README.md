@@ -16,4 +16,8 @@ fault_codes: optional, comma-separated FaultCode values this page covers
 ```
 
 Every `##` heading becomes one searchable chunk, and its source is cited as `file.md § Heading`.
-To add a page, drop a new `.md` file here with the same header. The index is rebuilt at startup.
+To add a page, drop a new `.md` file here with the same header (this `README.md` is skipped).
+- **When the index is built:** on the first `/rag/query` or `/voice/nlu` request, then cached for
+  the life of the process. Restart the backend to pick up new pages.
+- **Retriever:** in-memory Qdrant with multilingual sentence-transformers embeddings, or TF-IDF when
+  those packages aren't installed (e.g. the Docker image).

@@ -34,14 +34,17 @@ Unity **2022.3 LTS** project using **AR Foundation** (ARCore/ARKit), embedded in
 ## Setup / build
 1. Install Unity 2022.3 LTS + AR Foundation, ARCore XR Plugin, ARKit XR Plugin,
    TextMeshPro.
-2. Open this folder as a Unity project.
+2. This folder holds only the C# scripts (`Assets/Scripts/`). `ProjectSettings/` is an empty
+   placeholder and there are no scenes or packages yet. Create a new Unity 2022.3 AR Foundation
+   project, copy `Assets/Scripts/` into it, and build the scene as described above.
 3. Export as an Android/iOS library and integrate via `flutter_unity_widget`
-   into `app/ios/UnityLibrary` + `app/android/unityLibrary`, then uncomment
-   `flutter_unity_widget` in `app/pubspec.yaml` and swap
-   `arBridgeProvider` to `UnityArBridgeService` (see `app/lib/services/ar_bridge`).
+   into `app/ios/UnityLibrary` + `app/android/unityLibrary`.
+   - Add `flutter_unity_widget` to `app/pubspec.yaml`; it isn't listed there yet.
+   - Swap `arBridgeProvider` to `UnityArBridgeService` (see `app/lib/services/ar_bridge`).
 
-> Until the Unity export exists, the Flutter app runs the AR screens against
-> `MockArBridgeService` with a live camera preview, so the UX is fully testable.
+> Until the Unity export exists, the Flutter app runs AR training on the phone camera with its own
+> frame-differencing motion tracker (`app/lib/features/learning_hub/motion/`). The bridge screens use
+> `MockArBridgeService`, so the UX is fully testable without Unity.
 
 ## Protocol
 The frozen Unity↔Flutter message contract lives in [`PROTOCOL.md`](PROTOCOL.md)

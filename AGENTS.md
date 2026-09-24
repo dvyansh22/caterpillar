@@ -98,19 +98,29 @@ safety path works offline.
 ## Interface contracts — do NOT break without updating both sides
 1. **FastAPI JSON** (`backend/app/routers/*.py` ↔ `app/lib/services/ml_client`) — change pydantic + Dart together.
 2. **Data schemas** (`docs/SRS.md §6`, `ml/data/schemas/`) — generator, models, dashboard depend on them.
-3. **TFLite tensor specs** (P2 → P3).
-4. **Unity↔Flutter protocol** (`ar/` ↔ `app/lib/services/ar_bridge`).
+3. **TFLite tensor specs** (P2 → P3): `ml/ondevice/README.md` + `ml/models/*.json`.
+4. **Unity↔Flutter protocol** (`ar/PROTOCOL.md` ↔ `app/lib/services/ar_bridge`).
 5. **Firestore model** (`firebase/firestore.rules`: `users, machines, tasks, incidents, telematics, training, behaviorFlags, sosEvents`).
+6. **Shared anomaly limits** (`ml/generators/catalog.py` ↔ `backend/app/core/anomaly.py`): the generator and `/ml/anomaly` use the same per-machine limits.
 
-The backend returns **stub responses** today so the app can integrate before models exist — keep stubs contract-accurate.
+The endpoints serve real models (`/ml/estimate` XGBoost; anomaly/safety/maintenance XGBoost + rules).
+Each falls back to a contract-accurate stub or rules-only answer when `ml/` or a model file is missing.
+Keep those fallbacks contract-accurate.
 
 ## Setup & verify
-- App: `cd app && flutter pub get && flutter run` · check `flutter analyze`
-- Backend: `cd backend && pip install -r requirements.txt && uvicorn app.main:app --reload` · `GET /health`
-- ML: `cd ml && pip install -r requirements.txt` · `python generators/generate.py --help`
-- AR: open `ar/` in Unity 2022.3 LTS · Firebase: `firebase deploy --only firestore:rules,storage,functions`
+- App: `cd app && flutter pub get && flutter run` (add `--dart-define=USE_FIREBASE=true`, `--dart-define=API_BASE_URL=...` as needed) · check `flutter analyze`
+- ML + backend (Python 3.12, repo root): `pip install -r ml/requirements.txt -r backend/requirements-dev.txt` →
+  `python ml/generators/generate.py && python ml/training/train_task_time.py` →
+  `cd backend && uvicorn app.main:app --reload` · `GET /health`, `/docs`
+- Tests: `python -m pytest ml/tests backend/tests` (P2's on-device tests need `tensorflow`/`opencv`)
+- AR: Unity 2022.3 LTS + AR Foundation project with `ar/Assets/Scripts` · Firebase: `firebase deploy --only firestore:rules,storage` (no Cloud Functions yet)
+- Deploy backend: root `Dockerfile` (HF Spaces via `deploy/hf-deploy.sh`, or Render via `render.yaml`)
 
-Before pushing: backend must `import app.main` cleanly; app must `flutter analyze` without new errors (CI checks both).
+Before pushing, CI checks that:
+- the backend imports cleanly (`import app.main`);
+- the backend tests pass (`pytest` in `backend/`).
+
+`flutter analyze` also runs in CI but is **non-blocking** (`|| true`), so run it yourself and don't add new errors.
 
 ## Conventions
 - Dart → `flutter_lints`, feature-first folders. Python → PEP 8 + type hints.

@@ -1,7 +1,8 @@
 # Execution Plan — 4-Person Team
 ## Smart Operator Assistant for CAT Machinery
 
-**Team size:** 4 · **Repo:** github.com/dvyansh22/caterpillar · **Status:** v1.0 (planning).
+**Team size:** 4 · **Repo:** github.com/dvyansh22/caterpillar · **Status:** v1.0 plan, now in build.
+What is actually implemented (and what is simulated) is tracked in [`FEATURES.md`](FEATURES.md).
 
 This plan divides the build across 4 people so they work **in parallel** against frozen interface
 contracts. Dates are intentionally omitted (milestones are phase-based); sequence and dependencies
@@ -33,7 +34,7 @@ These are what let 4 people work without blocking each other.
 4. **Unity ↔ Flutter protocol** (P3 ↔ P4): message names/payloads (load model, highlight part,
    lesson step, progress).
 5. **Firestore data model** (P4 → all): shapes for `users / machines / tasks / incidents /
-   telematics / training / sosEvents`.
+   telematics / training / behaviorFlags / sosEvents`.
 
 ---
 

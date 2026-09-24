@@ -138,7 +138,8 @@ Priority: **M** = Must, **S** = Should, **C** = Could.
 
 ### 4.3 Software Interfaces / APIs
 - Firebase (Auth, Firestore, Cloud Storage, Cloud Messaging, Cloud Functions).
-- FastAPI service: `/ml/estimate`, `/ml/anomaly`, `/rag/query`, `/voice/nlu`, `/sim/generate`, `/signal`.
+- FastAPI service: `/ml/estimate`, `/ml/anomaly`, `/ml/safety`, `/ml/maintenance`, `/ml/fleet`, `/rag/query`,
+  `/voice/nlu`, `/sim/generate`; `/signal` (WebRTC signaling) is planned.
 - LLM API (Gemini/Claude); Open-Meteo (weather); Google Maps; Unity via flutter_unity_widget.
 
 ### 4.4 Communication Interfaces
@@ -152,6 +153,8 @@ Priority: **M** = Must, **S** = Should, **C** = Could.
 - **Performance (M):** On-device vision ≤ ~100 ms/frame; ETA/anomaly API responses < 1 s.
 - **Safety (M):** Gate is non-bypassable; SOS is reliable and confirmable; alerts are unmissable.
 - **Security (M):** Firebase token auth on every backend call; role-scoped rules; no PII in URLs.
+  *Status:* role-scoped Firestore rules are in place. Backend token auth is not implemented yet; the
+  API is currently public.
 - **Usability (M):** Hands-busy voice control; large touch targets; sunlight-readable.
 - **Reliability / Scalability (S):** Stateless FastAPI on Cloud Run; retries on sync.
 - **Portability (S):** Single Flutter codebase → Android / iOS / Web.
@@ -160,7 +163,7 @@ Priority: **M** = Must, **S** = Should, **C** = Could.
 
 ## 6. Data Requirements
 
-**Schema v1.0 — frozen (owner: P1).** This section is the data contract. Machine-readable files are
+**Schemas: Dataset A + reference tables v1.0, Dataset B v1.1 (owner: P1).** This section is the data contract. Machine-readable files are
 in [`ml/data/schemas/`](../ml/data/schemas/). Changing a column requires sign-off from P2 and P4.
 - Organizer column names are kept, so the raw sample CSVs are valid rows of this schema (new columns blank).
 - Numeric columns carry a unit suffix. A missing value is written as an empty cell.
@@ -264,7 +267,8 @@ to 2880 min. Dataset A is unchanged.
   - slope: +1% per degree over 5°
   - night: +8%
   - noise: lognormal, σ≈0.05
-- The task-time model predicts `ActualTime_min` and must beat the naive `EstimatedTime_min` baseline (FR-TASK-2).
+- The task-time model predicts `ActualTime_min` (internally as log(ActualTime / EstimatedTime); ETA = EstimatedTime ×
+  exp(prediction)) and must beat the naive `EstimatedTime_min` baseline (FR-TASK-2).
 
 ### 6.3 Firestore Collections
 `users, machines, tasks, incidents, telematics, training, behaviorFlags, sosEvents` — role-scoped by Security Rules.
