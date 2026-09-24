@@ -115,12 +115,23 @@ class IncidentRecord {
     required this.time,
     this.severity = 'observation',
     this.operatorId = '',
+    this.kind,
+    this.location = '',
+    this.gps = '',
+    this.transcript = '',
   });
   final String text;
   final String machineId;
   final String time;
   final String severity; // safety | anomaly | observation
   final String operatorId;
+
+  // Additive (owner dashboard). `kind` mirrors severity when null; live voice
+  // logs set kind='observation' and transcript=text. location/gps optional.
+  final String? kind;
+  final String location;
+  final String gps;
+  final String transcript;
 }
 
 /// A completed-lesson record (Firestore `training`), read for the owner dashboard.

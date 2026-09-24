@@ -49,16 +49,17 @@ class TaskDetailScreen extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
       children: [
-        _backLink('‹  All tasks', () => ref.read(navProvider.notifier).backToList()),
+        _backLink(acc, 'All tasks', () => ref.read(navProvider.notifier).backToList()),
         const SizedBox(height: 8),
-        Text(task.id, style: const TextStyle(fontSize: 13, color: AppColors.muted).merge(kMono)),
+        Text(task.id, style: mono(size: 13, color: AppColors.muted)),
         const SizedBox(height: 4),
-        Text(task.type, style: const TextStyle(fontSize: 30, height: 38 / 30, color: AppColors.ink)),
+        Text(task.type.toUpperCase(),
+            style: oswald(size: 30, weight: FontWeight.w700, spacing: 0.4, height: 38 / 30, color: AppColors.ink)),
         const SizedBox(height: 4),
         Row(children: [
           const Icon(Icons.place_outlined, size: 18, color: AppColors.muted),
           const SizedBox(width: 4),
-          Expanded(child: Text(task.location, style: const TextStyle(fontSize: 15, color: AppColors.muted))),
+          Expanded(child: Text(task.location, style: inter(size: 15, color: AppColors.muted))),
         ]),
         const SizedBox(height: 16),
         Container(
@@ -69,16 +70,18 @@ class TaskDetailScreen extends ConsumerWidget {
             children: [
               Row(
                 children: [
-                  Text('Estimated time', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: acc.ink)),
+                  Text('ESTIMATED TIME',
+                      style: oswald(size: 13, weight: FontWeight.w500, spacing: 1.0, color: acc.ink)),
                   const Spacer(),
                   _estBadge(acc, loading: loading, live: live, model: est?.modelVersion),
                 ],
               ),
               const SizedBox(height: 4),
-              Text('$etaMin min',
-                  style: TextStyle(fontSize: 52, height: 60 / 52, fontWeight: FontWeight.w500, color: acc.ink).merge(kTabular)),
+              Text('$etaMin MIN',
+                  style: oswald(size: 52, weight: FontWeight.w700, spacing: 0.4, height: 60 / 52, color: acc.ink)
+                      .merge(kTabular)),
               const SizedBox(height: 8),
-              Text(delta, style: TextStyle(fontSize: 14, height: 20 / 14, color: acc.ink)),
+              Text(delta, style: inter(size: 14, height: 20 / 14, color: acc.ink)),
               if (live && est.factors.isNotEmpty) ...[
                 const SizedBox(height: 14),
                 for (final f in est.factors) _factorRow(acc, f),
@@ -116,13 +119,13 @@ class TaskDetailScreen extends ConsumerWidget {
                     },
               style: FilledButton.styleFrom(
                 backgroundColor: acc.base,
-                foregroundColor: AppColors.ink,
+                foregroundColor: AppColors.onAccent,
                 disabledBackgroundColor: acc.base,
-                disabledForegroundColor: AppColors.ink,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-                textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w500),
+                disabledForegroundColor: AppColors.onAccent,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(kRadiusButton)),
+                textStyle: oswald(size: 16, weight: FontWeight.w600, spacing: 1.0),
               ),
-              child: Text(btnLabel),
+              child: Text(btnLabel.toUpperCase()),
             ),
           ),
         ),
@@ -150,7 +153,7 @@ class TaskDetailScreen extends ConsumerWidget {
           else
             Icon(live ? Icons.bolt : Icons.wifi_off, size: 13, color: fg),
           const SizedBox(width: 5),
-          Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: fg)),
+          Text(label.toUpperCase(), style: oswald(size: 11, weight: FontWeight.w600, spacing: 0.8, color: fg)),
         ],
       ),
     );
@@ -165,11 +168,11 @@ class TaskDetailScreen extends ConsumerWidget {
         children: [
           Expanded(
             child: Text(f.detail.isNotEmpty ? f.detail : f.name,
-                style: TextStyle(fontSize: 13, height: 18 / 13, color: acc.ink)),
+                style: inter(size: 13, height: 18 / 13, color: acc.ink)),
           ),
           const SizedBox(width: 10),
-          Text('$sign${f.minutes.abs().round()} min',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: acc.ink).merge(kTabular)),
+          Text('$sign${f.minutes.abs().round()} MIN',
+              style: oswald(size: 13, weight: FontWeight.w700, spacing: 0.4, color: acc.ink).merge(kTabular)),
         ],
       ),
     );
@@ -183,7 +186,7 @@ class TaskDetailScreen extends ConsumerWidget {
           children: [
             const Icon(Icons.warning_amber_rounded, size: 20, color: AppColors.errorText),
             const SizedBox(width: 10),
-            Expanded(child: Text(text, style: const TextStyle(fontSize: 14, height: 20 / 14, color: AppColors.errorText))),
+            Expanded(child: Text(text, style: inter(size: 14, height: 20 / 14, color: AppColors.errorText))),
           ],
         ),
       );
@@ -210,9 +213,9 @@ class TaskDetailScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Start at $hhmm to save ${b.minutesSaved.round()} min',
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.ink)),
+                    style: inter(size: 14, weight: FontWeight.w600, color: AppColors.ink)),
                 const SizedBox(height: 2),
-                Text(b.reason, style: const TextStyle(fontSize: 13, height: 18 / 13, color: AppColors.muted)),
+                Text(b.reason, style: inter(size: 13, height: 18 / 13, color: AppColors.muted)),
               ],
             ),
           ),
@@ -221,14 +224,22 @@ class TaskDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _backLink(String text, VoidCallback onTap) => Align(
+  Widget _backLink(AccentPalette acc, String text, VoidCallback onTap) => Align(
         alignment: Alignment.centerLeft,
         child: InkWell(
           borderRadius: BorderRadius.circular(8),
           onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-            child: Text(text, style: const TextStyle(fontSize: 15, color: AppColors.ink2)),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.chevron_left, size: 20, color: AppColors.ink2),
+                const SizedBox(width: 2),
+                Text(text.toUpperCase(),
+                    style: oswald(size: 14, weight: FontWeight.w600, spacing: 0.8, color: AppColors.ink2)),
+              ],
+            ),
           ),
         ),
       );
@@ -248,8 +259,8 @@ class TaskDetailScreen extends ConsumerWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(rows[i].$1, style: const TextStyle(fontSize: 15, color: AppColors.muted)),
-                    Text(rows[i].$2, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.ink)),
+                    Text(rows[i].$1, style: inter(size: 15, color: AppColors.muted)),
+                    Text(rows[i].$2, style: inter(size: 15, weight: FontWeight.w500, color: AppColors.ink)),
                   ],
                 ),
               ),

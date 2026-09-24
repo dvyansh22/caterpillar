@@ -34,19 +34,22 @@ class ProfileScreen extends ConsumerWidget {
               height: 64,
               alignment: Alignment.center,
               decoration: BoxDecoration(color: acc.tint, shape: BoxShape.circle),
-              child: Text(user.initial, style: TextStyle(fontSize: 26, fontWeight: FontWeight.w500, color: acc.ink)),
+              child: Text(user.initial, style: oswald(size: 26, weight: FontWeight.w500, spacing: 0, color: acc.ink)),
             ),
             const SizedBox(width: 16),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(user.name, style: const TextStyle(fontSize: 24, height: 30 / 24, color: AppColors.ink)),
-                const SizedBox(height: 2),
-                Row(children: [
-                  Text(user.opId, style: const TextStyle(fontSize: 13, color: AppColors.muted).merge(kMono)),
-                  const Text(' · Operator', style: TextStyle(fontSize: 13, color: AppColors.muted)),
-                ]),
-              ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(user.name.toUpperCase(),
+                      style: oswald(size: 24, weight: FontWeight.w700, spacing: 0.4, height: 30 / 24, color: AppColors.ink)),
+                  const SizedBox(height: 2),
+                  Row(children: [
+                    Text(user.opId, style: mono(size: 13, color: AppColors.muted)),
+                    Text(' · Operator', style: inter(size: 13, color: AppColors.muted)),
+                  ]),
+                ],
+              ),
             ),
           ],
         ),
@@ -58,7 +61,8 @@ class ProfileScreen extends ConsumerWidget {
           ('Skill level', user.skill),
         ]),
         const SizedBox(height: 20),
-        const Text('Skills passport', style: TextStyle(fontSize: 15, color: AppColors.muted)),
+        Text('Skills passport'.toUpperCase(),
+            style: oswald(size: 13, weight: FontWeight.w600, spacing: 1.2, color: AppColors.muted)),
         const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(color: AppColors.card, borderRadius: BorderRadius.circular(kRadiusCard)),
@@ -76,14 +80,14 @@ class ProfileScreen extends ConsumerWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(passport[i].title, style: const TextStyle(fontSize: 15, color: AppColors.ink)),
+                            Text(passport[i].title, style: inter(size: 15, weight: FontWeight.w500, color: AppColors.ink)),
                             const SizedBox(height: 2),
-                            Text(passport[i].date, style: const TextStyle(fontSize: 13, color: AppColors.muted)),
+                            Text(passport[i].date, style: inter(size: 13, color: AppColors.muted)),
                           ],
                         ),
                       ),
                       Text('${passport[i].score}',
-                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w500, color: AppColors.ink).merge(kTabular)),
+                          style: oswald(size: 20, weight: FontWeight.w500, color: AppColors.ink)),
                     ],
                   ),
                 ),
@@ -103,10 +107,10 @@ class ProfileScreen extends ConsumerWidget {
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.ink,
               side: const BorderSide(color: AppColors.muted2),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
-              textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(kRadiusButton)),
+              textStyle: oswald(size: 16, weight: FontWeight.w600, spacing: 1),
             ),
-            child: const Text('Sign out'),
+            child: const Text('SIGN OUT'),
           ),
         ),
       ],
@@ -126,9 +130,9 @@ class ProfileScreen extends ConsumerWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Flexible(child: Text(rows[i].$1, style: const TextStyle(fontSize: 15, color: AppColors.muted))),
+                    Flexible(child: Text(rows[i].$1, style: inter(size: 15, color: AppColors.muted))),
                     const SizedBox(width: 12),
-                    Flexible(child: Text(rows[i].$2, textAlign: TextAlign.right, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.ink))),
+                    Flexible(child: Text(rows[i].$2, textAlign: TextAlign.right, style: inter(size: 15, weight: FontWeight.w500, color: AppColors.ink))),
                   ],
                 ),
               ),

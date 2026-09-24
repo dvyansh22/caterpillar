@@ -73,12 +73,19 @@ class FirebaseDataRepository implements DataRepository {
       final ts = m['ts'];
       final time = ts is Timestamp ? _hhmm(ts.toDate()) : (m['timeIntoTask'] ?? '') as String;
       final sev = (m['severity'] ?? 'observation') as String;
+      final text = (m['text'] ?? '') as String;
+      // Live voice logs are observations; transcript defaults to the log text.
+      final kind = (m['kind'] as String?) ?? 'observation';
       return IncidentRecord(
-        text: (m['text'] ?? '') as String,
+        text: text,
         machineId: (m['machineId'] ?? '') as String,
         time: time,
         severity: sev,
         operatorId: (m['operatorId'] ?? '') as String,
+        kind: kind,
+        location: (m['location'] ?? '') as String,
+        gps: (m['gps'] ?? '') as String,
+        transcript: (m['transcript'] ?? text) as String,
       );
     }).toList();
   }

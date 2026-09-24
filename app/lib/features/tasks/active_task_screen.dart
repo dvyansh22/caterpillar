@@ -131,29 +131,38 @@ class _ActiveTaskScreenState extends ConsumerState<ActiveTaskScreen> with Single
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 88),
       children: [
-        // Timer card (dark)
+        // Timer card — dark fill with accent border
         Container(
           padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(color: AppColors.ink, borderRadius: BorderRadius.circular(kRadiusCard)),
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(kRadiusCard),
+            border: Border.all(color: acc.base),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(children: [
                 Container(width: 8, height: 8, decoration: BoxDecoration(color: acc.base, shape: BoxShape.circle)),
                 const SizedBox(width: 8),
-                Text('In progress · ${task.id}', style: const TextStyle(fontSize: 14, color: Color(0xFFC9C4B8)).merge(kMono)),
+                Text('IN PROGRESS',
+                    style: oswald(size: 14, weight: FontWeight.w600, spacing: 0.8, color: AppColors.ink)),
+                const SizedBox(width: 8),
+                Text(task.id, style: mono(size: 14, color: AppColors.ink2)),
               ]),
               const SizedBox(height: 6),
-              Text(task.type, style: const TextStyle(fontSize: 22, height: 28 / 22, color: AppColors.bg, fontWeight: FontWeight.w500)),
+              Text(task.type.toUpperCase(),
+                  style: oswald(size: 22, weight: FontWeight.w600, spacing: 0.4, height: 28 / 22, color: AppColors.ink)),
               const SizedBox(height: 8),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.baseline,
                 textBaseline: TextBaseline.alphabetic,
                 children: [
                   Text(_mmss(elapsedSec),
-                      style: const TextStyle(fontSize: 60, height: 64 / 60, fontWeight: FontWeight.w300, color: AppColors.bg).merge(kTabular)),
+                      style: oswald(size: 60, weight: FontWeight.w700, spacing: 0.4, height: 64 / 60, color: AppColors.ink)
+                          .merge(kTabular)),
                   const SizedBox(width: 10),
-                  Text('of ~${task.eta} min', style: const TextStyle(fontSize: 14, color: Color(0xFFC9C4B8))),
+                  Text('of ~${task.eta} min', style: inter(size: 14, color: AppColors.muted)),
                 ],
               ),
               const SizedBox(height: 12),
@@ -162,7 +171,7 @@ class _ActiveTaskScreenState extends ConsumerState<ActiveTaskScreen> with Single
                 child: LinearProgressIndicator(
                   value: progress,
                   minHeight: 6,
-                  backgroundColor: const Color(0x2EFBF8F2),
+                  backgroundColor: AppColors.ink.withValues(alpha: 0.18),
                   valueColor: AlwaysStoppedAnimation(acc.base),
                 ),
               ),
@@ -199,12 +208,12 @@ class _ActiveTaskScreenState extends ConsumerState<ActiveTaskScreen> with Single
                           Container(
                             width: 72,
                             height: 72,
-                            decoration: BoxDecoration(shape: BoxShape.circle, color: _recording ? AppColors.ink : acc.base),
+                            decoration: BoxDecoration(shape: BoxShape.circle, color: _recording ? AppColors.surface2 : acc.base),
                             child: (_preparing || _transcribing)
-                                ? const Padding(
-                                    padding: EdgeInsets.all(22),
-                                    child: CircularProgressIndicator(strokeWidth: 3, color: AppColors.ink))
-                                : Icon(_recording ? Icons.stop : Icons.mic, size: 30, color: _recording ? acc.base : AppColors.ink),
+                                ? Padding(
+                                    padding: const EdgeInsets.all(22),
+                                    child: CircularProgressIndicator(strokeWidth: 3, color: _recording ? acc.base : AppColors.onAccent))
+                                : Icon(_recording ? Icons.stop : Icons.mic, size: 30, color: _recording ? acc.base : AppColors.onAccent),
                           ),
                         ],
                       ),
@@ -223,7 +232,7 @@ class _ActiveTaskScreenState extends ConsumerState<ActiveTaskScreen> with Single
                                   : _recording
                                       ? 'Listening…'
                                       : 'Voice log',
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: AppColors.ink),
+                          style: inter(size: 18, weight: FontWeight.w500, color: AppColors.ink),
                         ),
                         const SizedBox(height: 4),
                         Text(
@@ -234,7 +243,7 @@ class _ActiveTaskScreenState extends ConsumerState<ActiveTaskScreen> with Single
                                   : _recording
                                       ? 'Speak now. Tap to stop.'
                                       : 'Tap and speak in your language.',
-                          style: const TextStyle(fontSize: 14, height: 20 / 14, color: AppColors.muted),
+                          style: inter(size: 14, height: 20 / 14, color: AppColors.muted),
                         ),
                       ],
                     ),
@@ -276,17 +285,18 @@ class _ActiveTaskScreenState extends ConsumerState<ActiveTaskScreen> with Single
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(color: AppColors.surface2, borderRadius: BorderRadius.circular(kRadiusSmall)),
-                  child: Text(_interim, style: const TextStyle(fontSize: 15, height: 22 / 15, color: AppColors.ink)),
+                  child: Text(_interim, style: inter(size: 15, height: 22 / 15, color: AppColors.ink)),
                 ),
               ],
             ],
           ),
         ),
         const SizedBox(height: 16),
-        Text('Observations · ${logs.length}', style: const TextStyle(fontSize: 13, color: AppColors.muted)),
+        Text('OBSERVATIONS · ${logs.length}',
+            style: oswald(size: 13, weight: FontWeight.w600, spacing: 1.4, color: AppColors.muted)),
         const SizedBox(height: 8),
         if (logs.isEmpty)
-          const Text('Nothing logged yet on this task.', style: TextStyle(fontSize: 15, color: AppColors.muted))
+          Text('Nothing logged yet on this task.', style: inter(size: 15, color: AppColors.muted))
         else
           ...logs.map((l) => Padding(
                 padding: const EdgeInsets.only(bottom: 8),
@@ -296,12 +306,12 @@ class _ActiveTaskScreenState extends ConsumerState<ActiveTaskScreen> with Single
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(l.text, style: const TextStyle(fontSize: 15, height: 22 / 15, color: AppColors.ink)),
+                      Text(l.text, style: inter(size: 15, height: 22 / 15, color: AppColors.ink)),
                       const SizedBox(height: 6),
                       Row(children: [
-                        Text(l.time, style: const TextStyle(fontSize: 12, color: AppColors.muted).merge(kMono)),
+                        Text(l.time, style: mono(size: 12, color: AppColors.muted)),
                         const SizedBox(width: 8),
-                        Text(l.sync, style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+                        Text(l.sync, style: inter(size: 12, color: AppColors.muted)),
                       ]),
                     ],
                   ),
@@ -318,11 +328,11 @@ class _ActiveTaskScreenState extends ConsumerState<ActiveTaskScreen> with Single
             },
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.ink,
-              side: const BorderSide(color: AppColors.muted2),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-              textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w500),
+              side: const BorderSide(color: AppColors.strongBorder),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(kRadiusButton)),
+              textStyle: oswald(size: 16, weight: FontWeight.w600, spacing: 1.0),
             ),
-            child: const Text('End task'),
+            child: const Text('END TASK'),
           ),
         ),
       ],
