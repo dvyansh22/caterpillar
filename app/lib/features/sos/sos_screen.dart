@@ -77,8 +77,8 @@ class _SosScreenState extends ConsumerState<SosScreen> {
 
   List<Widget> _idle() {
     return [
-      const Text('Sends your location over Bluetooth to nearby phones, which pass it on. Works with no cell signal.',
-          style: TextStyle(fontSize: 15, height: 22 / 15, color: AppColors.muted)),
+      Text('Sends your location over Bluetooth to nearby phones, which pass it on. Works with no cell signal.',
+          style: inter(size: 15, height: 22 / 15, color: AppColors.muted)),
       const SizedBox(height: 32),
       Center(
         child: GestureDetector(
@@ -107,8 +107,8 @@ class _SosScreenState extends ConsumerState<SosScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text('SOS', style: TextStyle(color: Colors.white, fontSize: 52, fontWeight: FontWeight.w700)),
-                      Text(_hold > 0 ? 'Keep holding' : 'Hold', style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+                      Text('SOS', style: oswald(size: 52, weight: FontWeight.w700, spacing: 1, color: Colors.white)),
+                      Text(_hold > 0 ? 'Keep holding' : 'Hold', style: inter(size: 14, weight: FontWeight.w600, color: Colors.white)),
                     ],
                   ),
                 ),
@@ -118,7 +118,7 @@ class _SosScreenState extends ConsumerState<SosScreen> {
         ),
       ),
       const SizedBox(height: 24),
-      const Center(child: Text('Press and hold for 2 seconds', style: TextStyle(fontSize: 14, color: AppColors.muted))),
+      Center(child: Text('Press and hold for 2 seconds', style: inter(size: 14, color: AppColors.muted))),
     ];
   }
 
@@ -144,12 +144,13 @@ class _SosScreenState extends ConsumerState<SosScreen> {
             Row(children: [
               Container(width: 8, height: 8, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle)),
               const SizedBox(width: 8),
-              Text('SOS active · ${_mmss(sosT.floor())}', style: const TextStyle(fontSize: 14, color: Colors.white).merge(kMono)),
+              Text('SOS active · ${_mmss(sosT.floor())}', style: mono(size: 14, color: Colors.white)),
             ]),
             const SizedBox(height: 8),
-            const Text('Help is being alerted', style: TextStyle(fontSize: 26, height: 32 / 26, color: Colors.white, fontWeight: FontWeight.w500)),
+            Text('Help is being alerted'.toUpperCase(),
+                style: oswald(size: 26, weight: FontWeight.w700, spacing: 0.4, height: 32 / 26, color: Colors.white)),
             const SizedBox(height: 4),
-            const Text('Stay where you are if it is safe.', style: TextStyle(fontSize: 15, color: Color(0xFFFFDAD5))),
+            Text('Stay where you are if it is safe.', style: inter(size: 15, color: const Color(0xFFFFDAD5))),
           ],
         ),
       ),
@@ -170,7 +171,7 @@ class _SosScreenState extends ConsumerState<SosScreen> {
         decoration: BoxDecoration(color: AppColors.surface2, borderRadius: BorderRadius.circular(kRadiusSmall)),
         child: Text(
           '${user.opId} · ${user.machineId} · ${user.gps} · severity high · $attached',
-          style: const TextStyle(fontSize: 12, color: AppColors.ink2).merge(kMono),
+          style: mono(size: 12, color: AppColors.ink2),
         ),
       ),
       const SizedBox(height: 16),
@@ -182,10 +183,10 @@ class _SosScreenState extends ConsumerState<SosScreen> {
           style: OutlinedButton.styleFrom(
             foregroundColor: AppColors.ink,
             side: const BorderSide(color: AppColors.muted2),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-            textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w500),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(kRadiusButton)),
+            textStyle: oswald(size: 16, weight: FontWeight.w600, spacing: 1),
           ),
-          child: const Text('Cancel SOS'),
+          child: const Text('CANCEL SOS'),
         ),
       ),
     ];
@@ -208,16 +209,16 @@ class _SosScreenState extends ConsumerState<SosScreen> {
               height: 28,
               alignment: Alignment.center,
               decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
-              child: done ? const Icon(Icons.check, size: 16, color: Colors.white) : null,
+              child: done ? const Icon(Icons.check, size: 16, color: AppColors.onAccent) : null,
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.ink)),
+                  Text(label, style: inter(size: 15, weight: FontWeight.w500, color: AppColors.ink)),
                   const SizedBox(height: 2),
-                  Text(detail, style: const TextStyle(fontSize: 13, height: 18 / 13, color: AppColors.muted)),
+                  Text(detail, style: inter(size: 13, height: 18 / 13, color: AppColors.muted)),
                 ],
               ),
             ),
@@ -239,7 +240,7 @@ class _HoldRingPainter extends CustomPainter {
     final track = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 8
-      ..color = const Color(0xFFF1D9D4);
+      ..color = AppColors.errorBg;
     canvas.drawCircle(center, radius, track);
     if (progress > 0) {
       final prog = Paint()

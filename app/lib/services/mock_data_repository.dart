@@ -12,4 +12,10 @@ class MockDataRepository implements DataRepository {
 
   @override
   Future<void> saveTrainingScore(OperatorUser user, String lessonId, String title, int score) async {}
+
+  @override
+  Future<List<IncidentRecord>> readIncidents(Vertical vertical) async => const [];
+
+  @override
+  Future<List<TrainingRecord>> readTraining(Vertical vertical) async => const [];
 }

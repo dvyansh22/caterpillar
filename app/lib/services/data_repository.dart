@@ -11,4 +11,10 @@ abstract class DataRepository {
 
   /// Persist a completed lesson's score to the training record.
   Future<void> saveTrainingScore(OperatorUser user, String lessonId, String title, int score);
+
+  /// Recent incidents/observations for a vertical (owner dashboard feed, FR-DASH-1).
+  Future<List<IncidentRecord>> readIncidents(Vertical vertical);
+
+  /// Completed-lesson records for a vertical (owner dashboard training compliance).
+  Future<List<TrainingRecord>> readTraining(Vertical vertical);
 }

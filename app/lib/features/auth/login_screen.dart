@@ -18,6 +18,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _user = TextEditingController(text: 'arjun');
   final _pass = TextEditingController(text: 'demo1234');
   String _error = '';
+  bool _busy = false;
 
   @override
   void dispose() {
@@ -25,15 +26,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _pass.dispose();
     super.dispose();
   }
-
-  void _pick(String username) {
-    setState(() {
-      _user.text = username;
-      _error = '';
-    });
-  }
-
-  bool _busy = false;
 
   Future<void> _signIn() async {
     setState(() {
@@ -55,7 +47,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final selected = _user.text.trim().toLowerCase();
+    const acc = AccentPalette.construction;
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -69,19 +61,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     child: Container(
                       width: 48,
                       height: 48,
+                      alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: AccentPalette.construction.base,
+                        color: acc.base,
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(Icons.precision_manufacturing, color: AppColors.ink),
+                      child: const Icon(Icons.precision_manufacturing, color: AppColors.onAccent),
                     ),
                   ),
                   const SizedBox(height: 28),
-                  const Text('Smart Operator',
-                      style: TextStyle(fontSize: 32, height: 40 / 32, letterSpacing: -0.2, color: AppColors.ink)),
+                  Text('SMART OPERATOR',
+                      style: oswald(size: 32, weight: FontWeight.w700, spacing: 0.4, height: 36 / 32, color: AppColors.ink)),
                   const SizedBox(height: 8),
-                  const Text('Sign in to start your shift. Your role and site load from your account.',
-                      style: TextStyle(fontSize: 15, height: 22 / 15, color: AppColors.muted)),
+                  Text('Sign in to start your shift. Your role and site load from your account.',
+                      style: inter(size: 15, height: 22 / 15, color: AppColors.muted)),
                   const SizedBox(height: 28),
                   _label('Username'),
                   TextField(controller: _user, onChanged: (_) => setState(() => _error = '')),
@@ -91,26 +84,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   if (_error.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 12),
-                      child: Text(_error, style: const TextStyle(fontSize: 14, color: AppColors.errorText)),
+                      child: Text(_error, style: inter(size: 14, color: AppColors.errorText)),
                     ),
-                  const SizedBox(height: 28),
-                  _label('Demo accounts'),
-                  Row(
-                    children: [
-                      Expanded(child: _demoCard('arjun', 'Construction · EXC004', selected == 'arjun')),
-                      const SizedBox(width: 12),
-                      Expanded(child: _demoCard('bala', 'Mining · HT012', selected == 'bala')),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Center(
-                    child: TextButton.icon(
-                      onPressed: () => ref.read(navProvider.notifier).toDashboard(),
-                      icon: const Icon(Icons.dashboard_outlined, size: 18),
-                      label: const Text('Open owner dashboard'),
-                      style: TextButton.styleFrom(foregroundColor: AppColors.muted),
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -122,16 +97,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: FilledButton(
                   onPressed: _busy ? null : _signIn,
                   style: FilledButton.styleFrom(
-                    backgroundColor: AccentPalette.construction.base,
-                    foregroundColor: AppColors.ink,
-                    disabledBackgroundColor: AccentPalette.construction.base,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-                    textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w500),
+                    backgroundColor: acc.base,
+                    foregroundColor: AppColors.onAccent,
+                    disabledBackgroundColor: acc.base,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(kRadiusButton)),
                   ),
                   child: _busy
                       ? const SizedBox(
-                          width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.ink))
-                      : const Text('Sign in'),
+                          width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.onAccent))
+                      : Text('SIGN IN', style: oswald(size: 16, weight: FontWeight.w600, spacing: 1, color: AppColors.onAccent)),
                 ),
               ),
             ),
@@ -143,32 +117,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Widget _label(String t) => Padding(
         padding: const EdgeInsets.only(bottom: 8),
-        child: Text(t, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.muted)),
+        child: Text(t, style: inter(size: 13, weight: FontWeight.w500, color: AppColors.muted)),
       );
-
-  Widget _demoCard(String name, String sub, bool selected) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: () => _pick(name),
-      child: Container(
-        constraints: const BoxConstraints(minHeight: 64),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: selected ? AppColors.ink : AppColors.inputBorder, width: selected ? 2 : 1),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: AppColors.ink)),
-            const SizedBox(height: 2),
-            Text(sub, style: const TextStyle(fontSize: 13, color: AppColors.muted)),
-          ],
-        ),
-      ),
-    );
-  }
 }

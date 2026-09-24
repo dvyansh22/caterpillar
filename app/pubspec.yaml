@@ -1,7 +1,7 @@
 name: smart_operator_assistant
 description: Smart Operator Assistant for CAT machinery — phone-first operator companion.
 publish_to: "none"
-version: 0.1.1+2
+version: 0.1.3+4
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -29,6 +29,11 @@ dependencies:
   sherpa_onnx: ^1.13.8
   record: ^7.1.1
   path_provider: ^2.1.6
+
+  # Night Shift design system: Oswald/Inter/JetBrains Mono via google_fonts,
+  # fl_chart for the dashboard idle chart. Icons use Material outlined symbols.
+  google_fonts: ^6.2.1
+  fl_chart: ^0.69.2
 
 dev_dependencies:
   flutter_test:

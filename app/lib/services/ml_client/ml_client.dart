@@ -37,10 +37,27 @@ class MlClient {
     } catch (_) {
       // Offline fallback — return a plausible stub.
       return const EstimateResponse(
-        predictedMinutes: 45.0,
-        confidence: 0.72,
+        estimatedMinutes: 45.0,
         baselineMinutes: 60.0,
       );
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Fleet snapshot (owner dashboard)
+  // -------------------------------------------------------------------------
+
+  /// Model-labeled fleet snapshot for the owner dashboard. Returns null when the
+  /// backend is unreachable so the dashboard can fall back to seed data.
+  Future<FleetSnapshot?> getFleet(String vertical) async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        '/ml/fleet',
+        queryParameters: {'vertical': vertical},
+      );
+      return FleetSnapshot.fromJson(response.data!);
+    } catch (_) {
+      return null;
     }
   }
 

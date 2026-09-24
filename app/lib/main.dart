@@ -1,4 +1,6 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -17,6 +19,15 @@ Future<void> main() async {
   // Only touches Firebase when explicitly enabled (see docs/FIREBASE_SETUP.md).
   if (kUseFirebase) {
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    // The web build is the owner dashboard product (no login). Sign in anonymously
+    // so its Firestore reads (incidents/training) are authorized by the rules
+    // (which require request.auth != null). Best-effort: if the Anonymous provider
+    // isn't enabled, the dashboard falls back to seed data per source.
+    if (kIsWeb) {
+      try {
+        await FirebaseAuth.instance.signInAnonymously();
+      } catch (_) {}
+    }
   }
   runApp(const ProviderScope(child: SmartOperatorApp()));
 }
@@ -40,6 +51,10 @@ class _Root extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Web is the owner/fleet dashboard product — boot straight into it, no login
+    // (design handoff: FLEET_DASHBOARD, "No login").
+    if (kIsWeb) return const DashboardScreen();
+
     final phase = ref.watch(navProvider.select((s) => s.phase));
     // Return the active screen directly. (The former AnimatedSwitcher + phone-width
     // builder wrapper are gone; they added a loosely-constrained Stack/SizedBox layer

@@ -52,19 +52,22 @@ class MainShell extends ConsumerWidget {
   PreferredSizeWidget _appBar(BuildContext context, WidgetRef ref, NavState nav, String title, AccentPalette acc) {
     return AppBar(
       automaticallyImplyLeading: false,
+      toolbarHeight: 56,
       titleSpacing: 16,
       title: Row(
         children: [
           if (nav.tab == AppTab.sos)
             Padding(
-              padding: const EdgeInsets.only(right: 4),
+              padding: const EdgeInsets.only(right: 8),
               child: IconButton(
                 onPressed: () => ref.read(navProvider.notifier).closeSos(),
-                icon: const Icon(Icons.close),
+                icon: const Icon(Icons.close, color: AppColors.ink),
                 iconSize: 22,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints.tightFor(width: 40, height: 40),
               ),
             ),
-          Text(title, style: const TextStyle(fontSize: 20, color: AppColors.ink)),
+          Text(title.toUpperCase(), style: oswald(size: 20, weight: FontWeight.w700, color: AppColors.ink)),
         ],
       ),
       actions: [
@@ -84,6 +87,7 @@ class MainShell extends ConsumerWidget {
     final hasActive = ref.watch(appProvider.select((s) => s.activeTaskId != null));
     Widget item(AppTab tab, IconData icon, String label, VoidCallback onTap) {
       final active = nav.tab == tab;
+      final color = active ? acc.ink : AppColors.muted2;
       return Expanded(
         child: InkWell(
           onTap: onTap,
@@ -98,11 +102,10 @@ class MainShell extends ConsumerWidget {
                   color: active ? acc.tint : Colors.transparent,
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: Icon(icon, size: 22, color: AppColors.ink),
+                child: Icon(icon, size: 22, color: color),
               ),
               const SizedBox(height: 4),
-              Text(label,
-                  style: TextStyle(fontSize: 12, fontWeight: active ? FontWeight.w700 : FontWeight.w500, color: AppColors.ink)),
+              Text(label.toUpperCase(), style: oswald(size: 12, weight: FontWeight.w500, spacing: 1, color: color)),
             ],
           ),
         ),
@@ -144,14 +147,15 @@ class _VerticalChip extends StatelessWidget {
       height: 32,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.inputBorder),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.strongBorder),
       ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(width: 8, height: 8, decoration: BoxDecoration(color: acc.base, shape: BoxShape.circle)),
-          const SizedBox(width: 6),
-          Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.ink2)),
+          const SizedBox(width: 8),
+          Text(label.toUpperCase(), style: oswald(size: 12, weight: FontWeight.w500, spacing: 1, color: AppColors.ink2)),
         ],
       ),
     );
@@ -217,10 +221,9 @@ class _SosFabState extends ConsumerState<_SosFab> with SingleTickerProviderState
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text('SOS',
-                      style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w700, letterSpacing: 1)),
+                  Text('SOS', style: oswald(size: 17, weight: FontWeight.w700, spacing: 1, color: Colors.white)),
                   if (active)
-                    const Text('ACTIVE', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600)),
+                    Text('ACTIVE', style: oswald(size: 10, weight: FontWeight.w600, spacing: 1, color: Colors.white)),
                 ],
               ),
             ),

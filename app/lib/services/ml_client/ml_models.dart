@@ -12,66 +12,194 @@ library;
 class EstimateRequest {
   const EstimateRequest({
     required this.taskType,
-    required this.machineType,
-    required this.operatorSkill,
     required this.weather,
+    required this.operatorSkill,
+    required this.machineAgeYears, // required by the backend contract
     this.vertical = 'construction',
-    this.machineAgeYears,
     this.materialType,
-    this.terrainSlope,
-    this.temperatureC,
-    this.windSpeed,
     this.haulDistanceM,
+    // where + when: use the live weather forecast for the ETA
+    this.siteId,
+    this.latitude,
+    this.longitude,
+    this.startTime,
+    // weather the app already has (overrides the forecast)
+    this.temperatureC,
+    this.humidityPct,
+    this.windSpeedKmh,
+    this.visibilityM,
+    this.precipMmH,
+    this.suggestStart = false,
   });
 
   final String taskType;
-  final String machineType;
-  final String operatorSkill;
   final String weather;
+  final String operatorSkill;
+  final double machineAgeYears;
   final String vertical;
-  final double? machineAgeYears;
   final String? materialType;
-  final double? terrainSlope;
-  final double? temperatureC;
-  final double? windSpeed;
   final double? haulDistanceM;
+  final String? siteId;
+  final double? latitude;
+  final double? longitude;
+  final DateTime? startTime;
+  final double? temperatureC;
+  final double? humidityPct;
+  final double? windSpeedKmh;
+  final double? visibilityM;
+  final double? precipMmH;
+  final bool suggestStart;
 
   Map<String, dynamic> toJson() => {
     'task_type': taskType,
-    'machine_type': machineType,
-    'operator_skill': operatorSkill,
     'weather': weather,
+    'operator_skill': operatorSkill,
+    'machine_age_yrs': machineAgeYears,
     'vertical': vertical,
-    if (machineAgeYears != null) 'machine_age_yrs': machineAgeYears,
     if (materialType != null) 'material_type': materialType,
-    if (terrainSlope != null) 'terrain_slope': terrainSlope,
-    if (temperatureC != null) 'temperature_c': temperatureC,
-    if (windSpeed != null) 'wind_speed': windSpeed,
     if (haulDistanceM != null) 'haul_distance_m': haulDistanceM,
+    if (siteId != null) 'site_id': siteId,
+    if (latitude != null) 'latitude': latitude,
+    if (longitude != null) 'longitude': longitude,
+    if (startTime != null) 'start_time': startTime!.toIso8601String(),
+    if (temperatureC != null) 'temperature_c': temperatureC,
+    if (humidityPct != null) 'humidity_pct': humidityPct,
+    if (windSpeedKmh != null) 'wind_speed_kmh': windSpeedKmh,
+    if (visibilityM != null) 'visibility_m': visibilityM,
+    if (precipMmH != null) 'precip_mm_h': precipMmH,
+    if (suggestStart) 'suggest_start': true,
   };
+}
+
+/// One line of the ETA explanation (minutes added/removed vs the baseline).
+class EtaFactor {
+  const EtaFactor({required this.name, required this.minutes, required this.detail});
+
+  factory EtaFactor.fromJson(Map<String, dynamic> j) => EtaFactor(
+    name: j['name'] as String? ?? '',
+    minutes: (j['minutes'] as num?)?.toDouble() ?? 0,
+    detail: j['detail'] as String? ?? '',
+  );
+
+  final String name;
+  final double minutes;
+  final String detail;
+}
+
+/// A suggested better start time in the next 24 h (from `suggest_start`).
+class BestStart {
+  const BestStart({
+    required this.startTime,
+    required this.estimatedMinutes,
+    required this.minutesSaved,
+    required this.reason,
+  });
+
+  factory BestStart.fromJson(Map<String, dynamic> j) => BestStart(
+    startTime: j['start_time'] as String? ?? '',
+    estimatedMinutes: (j['estimated_minutes'] as num?)?.toDouble() ?? 0,
+    minutesSaved: (j['minutes_saved'] as num?)?.toDouble() ?? 0,
+    reason: j['reason'] as String? ?? '',
+  );
+
+  final String startTime;
+  final double estimatedMinutes;
+  final double minutesSaved;
+  final String reason;
 }
 
 class EstimateResponse {
   const EstimateResponse({
-    required this.predictedMinutes,
-    required this.confidence,
+    required this.estimatedMinutes,
     this.baselineMinutes,
+    this.modelVersion = 'stub-0',
+    this.weatherSource,
+    this.factors = const [],
+    this.advisories = const [],
+    this.bestStart,
   });
 
   factory EstimateResponse.fromJson(Map<String, dynamic> json) {
-    // Tolerant to the backend field name: the P1 stub returns
-    // `estimated_minutes`; a future model build may return `predicted_minutes`.
-    final minutes = json['predicted_minutes'] ?? json['estimated_minutes'];
+    // `estimated_minutes` is the backend field; keep `predicted_minutes` as a
+    // fallback so an older stub still parses.
+    final minutes = json['estimated_minutes'] ?? json['predicted_minutes'];
+    final bs = json['best_start'];
     return EstimateResponse(
-      predictedMinutes: (minutes as num).toDouble(),
-      confidence: (json['confidence'] as num?)?.toDouble() ?? 0.75,
+      estimatedMinutes: (minutes as num).toDouble(),
       baselineMinutes: (json['baseline_minutes'] as num?)?.toDouble(),
+      modelVersion: json['model_version'] as String? ?? 'stub-0',
+      weatherSource: json['weather_source'] as String?,
+      factors: ((json['factors'] as List?) ?? const [])
+          .map((e) => EtaFactor.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      advisories: List<String>.from((json['advisories'] as List?) ?? const []),
+      bestStart: bs is Map<String, dynamic> ? BestStart.fromJson(bs) : null,
     );
   }
 
-  final double predictedMinutes;
-  final double confidence;
+  final double estimatedMinutes;
   final double? baselineMinutes;
+  final String modelVersion;
+  final String? weatherSource;
+  final List<EtaFactor> factors;
+  final List<String> advisories;
+  final BestStart? bestStart;
+}
+
+// ---------------------------------------------------------------------------
+// /ml/fleet — owner dashboard fleet snapshot (model-labeled telematics)
+// ---------------------------------------------------------------------------
+
+class FleetMachine {
+  const FleetMachine({
+    required this.id,
+    required this.type,
+    required this.operator,
+    required this.status, // in_use | idle | offline
+    required this.phoneFed,
+    required this.alerts,
+  });
+
+  factory FleetMachine.fromJson(Map<String, dynamic> j) => FleetMachine(
+    id: j['id'] as String? ?? '',
+    type: j['type'] as String? ?? '',
+    operator: j['operator'] as String? ?? '',
+    status: j['status'] as String? ?? 'in_use',
+    phoneFed: j['phone_fed'] as bool? ?? false,
+    alerts: (j['alerts'] as num?)?.toInt() ?? 0,
+  );
+
+  final String id, type, operator, status;
+  final bool phoneFed;
+  final int alerts;
+}
+
+class FleetSnapshot {
+  const FleetSnapshot({
+    required this.machines,
+    required this.idleWeek,
+    required this.active,
+    required this.safetyAlerts,
+    required this.anomalies,
+    required this.maintenanceDue,
+    required this.phoneFed,
+  });
+
+  factory FleetSnapshot.fromJson(Map<String, dynamic> j) => FleetSnapshot(
+    machines: ((j['machines'] as List?) ?? const [])
+        .map((e) => FleetMachine.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    idleWeek: ((j['idle_week'] as List?) ?? const []).map((e) => (e as num).toInt()).toList(),
+    active: (j['active'] as num?)?.toInt() ?? 0,
+    safetyAlerts: (j['safety_alerts'] as num?)?.toInt() ?? 0,
+    anomalies: (j['anomalies'] as num?)?.toInt() ?? 0,
+    maintenanceDue: (j['maintenance_due'] as num?)?.toInt() ?? 0,
+    phoneFed: (j['phone_fed'] as num?)?.toInt() ?? 0,
+  );
+
+  final List<FleetMachine> machines;
+  final List<int> idleWeek;
+  final int active, safetyAlerts, anomalies, maintenanceDue, phoneFed;
 }
 
 // ---------------------------------------------------------------------------

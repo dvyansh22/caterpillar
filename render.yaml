@@ -1,0 +1,15 @@
+# Render blueprint for the task-time ETA service (free tier, no credit card).
+# Deploy: Render dashboard > New > Blueprint > pick this repo. Render reads this
+# file, builds the root Dockerfile (which bakes the XGBoost model), and serves it.
+# Free instances sleep after ~15 min idle; the first request then cold-starts in
+# under a minute, so warm it once before a demo.
+services:
+  - type: web
+    name: smartop-eta
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    region: singapore # closest Render region to India
+    healthCheckPath: /health
+    autoDeploy: false

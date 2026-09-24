@@ -1,0 +1,16 @@
+# Lean runtime for hosting the task-time ETA service on a free tier.
+# The heavy RAG/LLM deps (qdrant, sentence-transformers/torch, google-generativeai)
+# and firebase-admin are lazy-imported, so the app starts and serves /ml/estimate,
+# /ml/anomaly, /sim and (tfidf-mode) /rag without them. Add them back for full RAG.
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+pydantic==2.9.2
+python-multipart==0.0.9
+
+# ML serving + the generator/trainer that bake the model at build time
+scikit-learn==1.5.2
+xgboost==2.1.1
+numpy==2.1.1
+pandas==2.2.2
+joblib==1.4.2
+Faker==28.4.1
