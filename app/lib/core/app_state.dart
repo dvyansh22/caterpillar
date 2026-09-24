@@ -8,6 +8,7 @@ import '../services/firebase_auth_service.dart';
 import '../services/firebase_data_repository.dart';
 import '../services/mock_auth_service.dart';
 import '../services/mock_data_repository.dart';
+import '../services/session_store.dart';
 import 'config.dart';
 import 'tokens.dart';
 
@@ -84,12 +85,53 @@ class AppController extends Notifier<AppData> {
     state = state.copyWith(username: account.username, account: account);
     final tasks = await ref.read(dataRepositoryProvider).getTasks(account.vertical);
     state = state.copyWith(tasks: tasks);
+    _persist();
   }
 
-  void logout() => state = const AppData();
+  /// Restore a persisted session on app start (so progress survives a restart).
+  /// Returns true if a session was restored and the app should skip login.
+  Future<bool> restore() async {
+    final saved = await SessionStore.load();
+    if (saved == null) return false;
+    // Prefer a live auth session (Firebase); fall back to the demo profile only
+    // in mock mode. In Firebase mode, require real auth so writes stay authorized.
+    OperatorUser? account = await ref.read(authServiceProvider).currentUser();
+    if (account == null && !kUseFirebase) account = kUsers[saved.username];
+    if (account == null) return false;
+    await startSession(account);
+    state = state.copyWith(
+      activeTaskId: saved.activeTaskId,
+      activeStartMs: saved.activeStartMs,
+      done: saved.done,
+      logs: saved.logs,
+      completed: saved.completed,
+    );
+    _persist();
+    return true;
+  }
 
-  void startTask(String id) =>
-      state = state.copyWith(activeTaskId: id, activeStartMs: DateTime.now().millisecondsSinceEpoch);
+  /// Save the restorable slice of state locally (fire-and-forget).
+  void _persist() {
+    final s = state;
+    SessionStore.save(SavedSession(
+      username: s.username,
+      activeTaskId: s.activeTaskId,
+      activeStartMs: s.activeStartMs,
+      done: s.done,
+      logs: s.logs,
+      completed: s.completed,
+    )).catchError((_) {});
+  }
+
+  void logout() {
+    SessionStore.clear().catchError((_) {});
+    state = const AppData();
+  }
+
+  void startTask(String id) {
+    state = state.copyWith(activeTaskId: id, activeStartMs: DateTime.now().millisecondsSinceEpoch);
+    _persist();
+  }
 
   /// Marks the active task done with its real elapsed minutes.
   void endTask() {
@@ -102,17 +144,20 @@ class AppController extends Notifier<AppData> {
       activeTaskId: null,
       activeStartMs: null,
     );
+    _persist();
   }
 
   void addVoiceLog(String taskId, VoiceLog log) {
     final existing = state.logs[taskId] ?? const [];
     state = state.copyWith(logs: {...state.logs, taskId: [log, ...existing]});
+    _persist();
     // Write-through to the incidents store (no-op for mock).
     ref.read(dataRepositoryProvider).addIncident(user, taskId, log).catchError((_) {});
   }
 
   void completeLesson(String lessonId, String title, int score) {
     state = state.copyWith(completed: {...state.completed, lessonId: score});
+    _persist();
     ref.read(dataRepositoryProvider).saveTrainingScore(user, lessonId, title, score).catchError((_) {});
   }
 

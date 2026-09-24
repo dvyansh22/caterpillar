@@ -18,5 +18,8 @@ class MockAuthService implements AuthService {
   }
 
   @override
+  Future<OperatorUser?> currentUser() async => null; // mock has no persisted auth; restore uses the saved username
+
+  @override
   Future<void> signOut() async {}
 }

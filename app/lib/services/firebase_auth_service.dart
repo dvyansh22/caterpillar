@@ -30,6 +30,21 @@ class FirebaseAuthService implements AuthService {
   }
 
   @override
+  Future<OperatorUser?> currentUser() async {
+    final u = FirebaseAuth.instance.currentUser;
+    // Ignore anonymous sessions (used by the web dashboard) — they have no profile.
+    if (u == null || u.isAnonymous) return null;
+    try {
+      final snap = await FirebaseFirestore.instance.collection('users').doc(u.uid).get();
+      if (!snap.exists) return null;
+      final username = (u.email ?? '').split('@').first;
+      return _userFromDoc(username, snap.data()!);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
   Future<void> signOut() => FirebaseAuth.instance.signOut();
 
   String _mapError(String code) => switch (code) {

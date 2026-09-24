@@ -29,6 +29,7 @@ dependencies:
   sherpa_onnx: ^1.13.8
   record: ^7.1.1
   path_provider: ^2.1.6
+  shared_preferences: ^2.3.2 # persist the operator session across app restarts
 
   # Night Shift design system: Oswald/Inter/JetBrains Mono via google_fonts,
   # fl_chart for the dashboard idle chart. Icons use Material outlined symbols.
